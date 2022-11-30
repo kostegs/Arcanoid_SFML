@@ -10,6 +10,8 @@ namespace Arcanod_SFML_HomeWork
     {
         static void Main(string[] args)
         {
+            Controller.GlobalInitialization();
+            Controller.Play();
         }
     }
 }
