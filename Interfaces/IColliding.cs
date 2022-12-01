@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SFML.Graphics;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,7 @@ namespace Arcanod_SFML_HomeWork.Interfaces
 {
     internal interface IColliding
     {
-        void CheckCollision(IGameObject withObject);
+        void CheckCollision(IColliding withObject);
+        Sprite GetSpriteOfObject();
     }
 }

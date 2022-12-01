@@ -8,6 +8,7 @@ namespace Arcanod_SFML_HomeWork.Interfaces
 {
     internal interface IDestroyable
     {
+        bool AllowToDestroy { get; set; }
         void Destroy();
     }
 }
