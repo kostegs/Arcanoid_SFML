@@ -19,6 +19,7 @@ namespace Arcanod_SFML_HomeWork
         private Vector2i s_mousePosition;
         private Vector2f _direction;
         public Sprite BallSprite { get; private set; }
+        public event EventHandler BallDropped;
 
         public Ball()
         {
@@ -28,6 +29,8 @@ namespace Arcanod_SFML_HomeWork
         }     
         public void SetStartPosition()
         {
+            _speed = 0;
+
             // Stick the ball to the mouse pointer until the player click the left button.
             BallSprite.Position = new Vector2f(0, 500 - BallSprite.TextureRect.Height);
             s_mousePosition = Mouse.GetPosition(Controller.View);
@@ -57,7 +60,7 @@ namespace Arcanod_SFML_HomeWork
             {
                 // To avoid exit from borders
                 float xPos = s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f) < 0 ? 0 : s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f);
-                xPos = s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f) > 800 ? 800 - BallSprite.TextureRect.Width : xPos;
+                xPos = xPos + BallSprite.TextureRect.Width > 800 ? 800 - BallSprite.TextureRect.Width : xPos;
                 BallSprite.Position = new Vector2f(xPos, BallSprite.Position.Y);
                 return;
             }                
@@ -97,8 +100,9 @@ namespace Arcanod_SFML_HomeWork
                         _direction.X *= -1;
                     else if (withObject is TopBorder)
                         _direction.Y *= -1;
-                }
-                    
+                    else if (withObject is BottomBorder)
+                        BallDropped?.Invoke(this, new EventArgs());
+                }                    
             }
             else
             {

@@ -35,8 +35,8 @@ namespace Arcanod_SFML_HomeWork.Models
         public SideBorder(float xPos, float yPos, uint width, uint height) : base(xPos, yPos, width, height) { }
     }
     
-    internal class BottomWall : Border
+    internal class BottomBorder : Border
     {
-        public BottomWall(float xPos, float yPos, uint width, uint height) : base(xPos, yPos, width, height) {}
+        public BottomBorder(float xPos, float yPos, uint width, uint height) : base(xPos, yPos, width, height) {}
     }
 }

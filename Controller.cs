@@ -14,6 +14,8 @@ namespace Arcanod_SFML_HomeWork
     {
         public static View View { get; private set; } = new View();
         public static LinkedList<IGameObject> s_GameObjects { get; private set; }
+        public static int Hp { get; private set; }
+
         public static void GlobalInitialization()
         {
             View.Initialize();
@@ -22,12 +24,17 @@ namespace Arcanod_SFML_HomeWork
         public static void InitializateController()
         {
             InitializeGameObjects();
+            Hp = Settings.DefaultHp;
+            Settings.GameMode = GameMode.Play;
         }
         public static void InitializeGameObjects()
         {
             s_GameObjects = new LinkedList<IGameObject>();
 
-            s_GameObjects.AddLast(new Ball());
+            Ball mainBall = new Ball();
+            mainBall.BallDropped += BallDroppedHandler;
+
+            s_GameObjects.AddLast(mainBall);
             s_GameObjects.AddLast(new Platform());
             s_GameObjects.AddLast(new Blocks());
 
@@ -38,7 +45,7 @@ namespace Arcanod_SFML_HomeWork
             // Right Border
             s_GameObjects.AddLast(new SideBorder(800, 0, 5, 600));
             // Bottom Border
-            s_GameObjects.AddLast(new BottomWall(0, 600, 5, 800));
+            s_GameObjects.AddLast(new BottomBorder(0, 600, 800, 5));
                         
         }
         public static void Play()
@@ -47,40 +54,69 @@ namespace Arcanod_SFML_HomeWork
             {
                 View.DispatchEvents();
 
-                // Checking interact
-                foreach(IGameObject gameObject in s_GameObjects)                
-                    if (gameObject is IInteractive)
-                        ((IInteractive)gameObject).Interact();                
-
-                // Moving objects
-                foreach (IGameObject gameObject in s_GameObjects)                
-                    if (gameObject is IMovable)
-                        ((IMovable)gameObject).Move();                
-
-                // Checking Collision
-                foreach (IGameObject gameObject in s_GameObjects)
-                {
-                    if (gameObject is IColliding)
-                    {
-                        foreach (IGameObject anotherObject in s_GameObjects)
-                        {
-                            if ((anotherObject is IColliding) && (anotherObject != gameObject))
-                                ((IColliding)gameObject).CheckCollision((IColliding)anotherObject);
-                        }
-                    }                        
-                }
-
-                // Clear window
-                View.Clear();
-
-                // Draw objects
-                foreach (IGameObject gameObject in s_GameObjects)                
-                    if (gameObject is IDrawable)
-                        ((IDrawable)gameObject).Draw();                
+                if (Settings.GameMode == GameMode.Play)
+                    PlayGameActions();
+                else if (Settings.GameMode == GameMode.EndGame)
+                    EndGameActions();                
 
                 // Display window
                 View.Display();
             }
-        }        
+        }     
+        public static void PlayGameActions()
+        {
+            // Checking interact
+            foreach (IGameObject gameObject in s_GameObjects)
+                if (gameObject is IInteractive)
+                    ((IInteractive)gameObject).Interact();
+
+            // Moving objects
+            foreach (IGameObject gameObject in s_GameObjects)
+                if (gameObject is IMovable)
+                    ((IMovable)gameObject).Move();
+
+            // Checking Collision
+            foreach (IGameObject gameObject in s_GameObjects)
+            {
+                if (gameObject is IColliding)
+                {
+                    foreach (IGameObject anotherObject in s_GameObjects)
+                    {
+                        if ((anotherObject is IColliding) && (anotherObject != gameObject))
+                            ((IColliding)gameObject).CheckCollision((IColliding)anotherObject);
+                    }
+                }
+            }
+
+            // Clear window
+            View.Clear();
+
+            // Draw objects
+            foreach (IGameObject gameObject in s_GameObjects)
+                if (gameObject is IDrawable)
+                    ((IDrawable)gameObject).Draw();
+
+            View.DisplayStats();
+        }
+        
+        public static void EndGameActions()
+        {
+            View.Clear();
+            View.DrawEndGameWIndow();
+        }
+        public static void BallDroppedHandler(object sender, EventArgs e)
+        {
+            Hp--;
+
+            if (Hp == 0)
+                Settings.GameMode = GameMode.EndGame;
+            
+            if (sender is Ball)
+            {
+                Ball ball = sender as Ball;
+                ball.SetStartPosition();                
+            }
+            
+        }
     }
 }

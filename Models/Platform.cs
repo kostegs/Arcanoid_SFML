@@ -36,7 +36,7 @@ namespace Arcanod_SFML_HomeWork
         {
             // To avoid leaving from screen-borders
             float xPos = s_mousePosition.X - (PlatformSprite.TextureRect.Width * 0.5f) < 0 ? 0 : s_mousePosition.X - (PlatformSprite.TextureRect.Width * 0.5f);
-            xPos = s_mousePosition.X - (PlatformSprite.TextureRect.Width * 0.5f) > 800 ? 800 - PlatformSprite.TextureRect.Width : xPos;
+            xPos = xPos + PlatformSprite.TextureRect.Width > 800 ? 800 - PlatformSprite.TextureRect.Width : xPos;
 
             PlatformSprite.Position = new Vector2f(xPos, PlatformSprite.Position.Y);            
         }
