@@ -1,4 +1,6 @@
 ﻿using Arcanod_SFML_HomeWork.Interfaces;
+using Arcanod_SFML_HomeWork.Models;
+using SFML.System;
 using System;
 using System.CodeDom;
 using System.Collections.Generic;
@@ -24,12 +26,20 @@ namespace Arcanod_SFML_HomeWork
         public static void InitializeGameObjects()
         {
             s_GameObjects = new LinkedList<IGameObject>();
+
             s_GameObjects.AddLast(new Ball());
             s_GameObjects.AddLast(new Platform());
-            s_GameObjects.AddLast(new SideWalls());
-            s_GameObjects.AddLast(new TopWall());
-            s_GameObjects.AddLast(new BottomWall());
             s_GameObjects.AddLast(new Blocks());
+
+            // Left Border
+            s_GameObjects.AddLast(new SideBorder(-5, 0, 5, 600));
+            // Top Border
+            s_GameObjects.AddLast(new TopBorder(0, -5, 800, 5));
+            // Right Border
+            s_GameObjects.AddLast(new SideBorder(800, 0, 5, 600));
+            // Bottom Border
+            s_GameObjects.AddLast(new BottomWall(0, 600, 5, 800));
+                        
         }
         public static void Play()
         {
@@ -71,6 +81,6 @@ namespace Arcanod_SFML_HomeWork
                 // Display window
                 View.Display();
             }
-        }
+        }        
     }
 }

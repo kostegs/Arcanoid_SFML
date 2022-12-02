@@ -1,4 +1,5 @@
 ﻿using Arcanod_SFML_HomeWork.Interfaces;
+using Arcanod_SFML_HomeWork.Models;
 using SFML.Graphics;
 using SFML.System;
 using SFML.Window;
@@ -15,24 +16,36 @@ namespace Arcanod_SFML_HomeWork
     {
         private Texture _ballTexture;
         private float _speed;
+        private Vector2i s_mousePosition;
         private Vector2f _direction;
-        public Sprite Sprite { get; private set; }
+        public Sprite BallSprite { get; private set; }
 
         public Ball()
         {
             _ballTexture = new Texture(@"./res/Ball.png");
-            Sprite = new Sprite(_ballTexture);
-            Sprite.Position = new Vector2f(375, 400);
+            BallSprite = new Sprite(_ballTexture);
+            SetStartPosition();
+        }     
+        public void SetStartPosition()
+        {
+            // Stick the ball to the mouse pointer until the player click the left button.
+            BallSprite.Position = new Vector2f(0, 500 - BallSprite.TextureRect.Height);
+            s_mousePosition = Mouse.GetPosition(Controller.View);
+            BallSprite.Position = new Vector2f(s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f), BallSprite.Position.Y);
         }
-
         public void Interact()
         {
+            if (_speed != 0)
+                return;
+
+            s_mousePosition = Mouse.GetPosition(Controller.View);
+
             if (Mouse.IsButtonPressed(Mouse.Button.Left))
-                Start(5, new Vector2f(0, -1));
+                Start(Settings.BallSpeed, new Vector2f(0, -1));
         }
         public void Start(float speed, Vector2f direction)
         {
-            if (this._speed != 0)
+            if (_speed != 0)
                 return;
 
             this._speed = speed;
@@ -40,22 +53,21 @@ namespace Arcanod_SFML_HomeWork
         }
         public void Move(Vector2i boundsPos, Vector2i boundsSize)
         {
-            Sprite.Position += _direction * _speed;
-            if (Sprite.Position.X > boundsSize.X - Sprite.TextureRect.Width || Sprite.Position.X < boundsPos.X)
-                _direction.X *= -1;
-            if (Sprite.Position.Y < boundsPos.Y)
-                _direction.Y *= -1;
+            if (_speed == 0)
+            {
+                // To avoid exit from borders
+                float xPos = s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f) < 0 ? 0 : s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f);
+                xPos = s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f) > 800 ? 800 - BallSprite.TextureRect.Width : xPos;
+                BallSprite.Position = new Vector2f(xPos, BallSprite.Position.Y);
+                return;
+            }                
+
+            BallSprite.Position += _direction * _speed;           
         }
 
-        public void Move()
-        {
-            Move(new Vector2i(0, 0), new Vector2i(800, 600));
-        }
-
-        public void Draw()
-        {
-            Controller.View.Draw(Sprite);
-        }
+        public void Move() => Move(new Vector2i(0, 0), new Vector2i(800, 600));
+        
+        public void Draw() => Controller.View.Draw(BallSprite);
 
         public void CheckCollision(IColliding withObject)
         {
@@ -68,7 +80,7 @@ namespace Arcanod_SFML_HomeWork
                         Sprite withObjectSprite = block.GetSpriteOfObject();
 
                         // If we have collision, we don't need continue the cycle.
-                        if (Sprite.GetGlobalBounds().Intersects(withObjectSprite.GetGlobalBounds()))
+                        if (BallSprite.GetGlobalBounds().Intersects(withObjectSprite.GetGlobalBounds()))
                         {
                             _direction.Y *= -1;
                             break;
@@ -76,25 +88,35 @@ namespace Arcanod_SFML_HomeWork
                     }                    
                 }
             }
+            else if (withObject is Border)
+            {
+                Sprite withObjectSprite = ((IColliding)withObject).GetSpriteOfObject();
+                if (BallSprite.GetGlobalBounds().Intersects(withObjectSprite.GetGlobalBounds()))
+                {
+                    if (withObject is SideBorder)
+                        _direction.X *= -1;
+                    else if (withObject is TopBorder)
+                        _direction.Y *= -1;
+                }
+                    
+            }
             else
             {
                 Sprite withObjectSprite = ((IColliding)withObject).GetSpriteOfObject();
 
-                if (Sprite.GetGlobalBounds().Intersects(withObjectSprite.GetGlobalBounds()))
+                if (BallSprite.GetGlobalBounds().Intersects(withObjectSprite.GetGlobalBounds()))
                 {
                     if (withObject is Platform)
                     {
                         _direction.Y = -1;
-                        float f = ((Sprite.Position.X + Sprite.TextureRect.Width * 0.5f) - (withObjectSprite.Position.X + withObjectSprite.TextureRect.Width * 0.5f)) / withObjectSprite.TextureRect.Width;
+                        float f = ((BallSprite.Position.X + BallSprite.TextureRect.Width * 0.5f) - (withObjectSprite.Position.X + withObjectSprite.TextureRect.Width * 0.5f)) / withObjectSprite.TextureRect.Width;
                         _direction.X = f * 1.5f;
                     }
                 }
             }
         }
 
-        public Sprite GetSpriteOfObject()
-        {
-            return Sprite;
-        }
+        public Sprite GetSpriteOfObject() => BallSprite;
+        
     }
 }
