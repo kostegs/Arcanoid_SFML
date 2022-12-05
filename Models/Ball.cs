@@ -18,7 +18,8 @@ namespace Arcanod_SFML_HomeWork
         private float _speed;
         private Vector2i s_mousePosition;
         private Vector2f _direction;
-        public Sprite BallSprite { get; private set; }
+
+        public Sprite BallSprite { get; protected set; }
         public event EventHandler BallDropped;
 
         public Ball()
@@ -58,7 +59,7 @@ namespace Arcanod_SFML_HomeWork
         {
             if (_speed == 0)
             {
-                // To avoid exit from borders
+                // To avoid exit from borders, in case where ball is on the platform and move with this
                 float xPos = s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f) < 0 ? 0 : s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f);
                 xPos = xPos + BallSprite.TextureRect.Width > 800 ? 800 - BallSprite.TextureRect.Width : xPos;
                 BallSprite.Position = new Vector2f(xPos, BallSprite.Position.Y);
@@ -72,23 +73,23 @@ namespace Arcanod_SFML_HomeWork
         
         public void Draw() => Controller.View.Draw(BallSprite);
 
-        public void CheckCollision(IColliding withObject)
+        public virtual void CheckCollision(IColliding withObject)
         {
             if (withObject is Blocks)
             {
                 foreach (Block block in ((Blocks)withObject).BlockList)
                 {
-                    if (block is IColliding)
-                    {
-                        Sprite withObjectSprite = block.GetSpriteOfObject();
+                    if (block.IsDestroyMode)
+                        continue;
 
-                        // If we have collision, we don't need continue the cycle.
-                        if (BallSprite.GetGlobalBounds().Intersects(withObjectSprite.GetGlobalBounds()))
-                        {
-                            _direction.Y *= -1;
-                            break;
-                        }
-                    }                    
+                    Sprite withObjectSprite = block.GetSpriteOfObject();
+
+                    // If we have collision, we don't need continue the cycle.
+                    if (BallSprite.GetGlobalBounds().Intersects(withObjectSprite.GetGlobalBounds()))
+                    {
+                        _direction.Y *= -1;
+                        break;
+                    }                                        
                 }
             }
             else if (withObject is Border)
@@ -119,8 +120,6 @@ namespace Arcanod_SFML_HomeWork
                 }
             }
         }
-
-        public Sprite GetSpriteOfObject() => BallSprite;
-        
-    }
+        public Sprite GetSpriteOfObject() => BallSprite;        
+    }    
 }

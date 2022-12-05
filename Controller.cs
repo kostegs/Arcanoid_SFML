@@ -12,6 +12,8 @@ namespace Arcanod_SFML_HomeWork
 {
     internal static class Controller
     {
+        static Random s_random;
+        private static Queue<IGameObject> s_queueAddObjects = new Queue<IGameObject>();        
         public static View View { get; private set; } = new View();
         public static LinkedList<IGameObject> s_GameObjects { get; private set; }
         public static int Hp { get; private set; }
@@ -20,6 +22,7 @@ namespace Arcanod_SFML_HomeWork
         {
             View.Initialize();
             InitializateController();
+            s_random = new Random();
         }
         public static void InitializateController()
         {
@@ -27,6 +30,7 @@ namespace Arcanod_SFML_HomeWork
             Hp = Settings.DefaultHp;
             Settings.GameMode = GameMode.Play;
         }
+        public static int RandomNumber(int minBound, int maxBound) => s_random.Next(minBound, maxBound);
         public static void InitializeGameObjects()
         {
             s_GameObjects = new LinkedList<IGameObject>();
@@ -45,7 +49,7 @@ namespace Arcanod_SFML_HomeWork
             // Right Border
             s_GameObjects.AddLast(new SideBorder(800, 0, 5, 600));
             // Bottom Border
-            s_GameObjects.AddLast(new BottomBorder(0, 600, 800, 5));
+            s_GameObjects.AddLast(new BottomBorder(0, 600, 800, 5));  
                         
         }
         public static void Play()
@@ -65,6 +69,12 @@ namespace Arcanod_SFML_HomeWork
         }     
         public static void PlayGameActions()
         {
+            // Checking queue
+            while (s_queueAddObjects.Count() != 0)
+            {
+                s_GameObjects.AddFirst(s_queueAddObjects.Dequeue());
+            }
+
             // Checking interact
             foreach (IGameObject gameObject in s_GameObjects)
                 if (gameObject is IInteractive)
@@ -85,6 +95,23 @@ namespace Arcanod_SFML_HomeWork
                         if ((anotherObject is IColliding) && (anotherObject != gameObject))
                             ((IColliding)gameObject).CheckCollision((IColliding)anotherObject);
                     }
+                }
+            }
+
+            // Remove destructed objects
+            var currentNode = s_GameObjects.First;
+            LinkedListNode<IGameObject> lastNode = null;
+
+            while (currentNode != null)
+            {
+                IGameObject currentListElement= currentNode.Value;
+                lastNode = currentNode;
+                currentNode = currentNode.Next;
+
+                if (currentListElement is IDestroyable && ((IDestroyable)currentListElement).AllowToDestroy)
+                {
+                    currentListElement = null;
+                    s_GameObjects.Remove(lastNode);
                 }
             }
 
@@ -117,6 +144,11 @@ namespace Arcanod_SFML_HomeWork
                 ball.SetStartPosition();                
             }
             
+        }
+        public static void AddExplosiveBall(float xPos, float yPos, float width, float height)
+        {
+            IGameObject explosiveBall = new ExplosiveObject(new Vector2f(xPos, yPos), width, height);
+            s_queueAddObjects.Enqueue(explosiveBall);            
         }
     }
 }
