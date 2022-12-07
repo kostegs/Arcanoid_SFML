@@ -39,4 +39,8 @@ namespace Arcanod_SFML_HomeWork.Models
     {
         public BottomBorder(float xPos, float yPos, uint width, uint height) : base(xPos, yPos, width, height) {}
     }
+    internal class BorderUnderPlatform : Border
+    {
+        public BorderUnderPlatform(float xPos, float yPos, uint width, uint height) : base(xPos, yPos, width, height) { }
+    }
 }

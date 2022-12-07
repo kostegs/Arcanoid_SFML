@@ -57,6 +57,8 @@ namespace Arcanod_SFML_HomeWork
             s_GameObjects.AddLast(new SideBorder(800, 0, 5, 600));
             // Bottom Border
             s_GameObjects.AddLast(new BottomBorder(0, 600, 800, 5));
+            // Border under platform for checking collision with blocks only
+            s_GameObjects.AddLast(new BorderUnderPlatform(0, 520, 800, 80));
         }
 
         private static Blocks CreateBlocksObject()
@@ -74,30 +76,45 @@ namespace Arcanod_SFML_HomeWork
 
         private static Blocks CreateBlocksObject_PlayMode()
         {
+            int countOfBlocks = 25;
+            int numberOfColumns = 5;
+            
             switch (LevelNumber)
             {
                 case 1:
-                    return new Blocks(25, 5);                    
-                case 2:
-                    return new Blocks(50, 10);                    
+                    countOfBlocks = 25;
+                    numberOfColumns = 5;
+                    break;
+                case 2:                    
+                    countOfBlocks = 50;
+                    numberOfColumns = 10;
+                    break;
                 case 3:
-                    return new Blocks(80, 8);                    
+                    countOfBlocks = 80;
+                    numberOfColumns = 8;
+                    break;
                 case 4:
                 case 5:
-                    return new Blocks(100, 10);                    
+                    countOfBlocks = 100;
+                    numberOfColumns = 10;
+                    break;
                 default:
-                    return new Blocks(25, 5);                    
+                    break;
             }
+
+            Blocks blocks = new Blocks(countOfBlocks, numberOfColumns);
+            blocks.IsCollision += BlockCollisionHandler;
+            return blocks;
         }
 
         private static Blocks CreateBlocksObject_StartScreenMode()
         {
             Blocks blocks = new Blocks(3, 2);
-            blocks.IsCollision += ButtonBlock_Collision;
+            blocks.IsCollision += BlockCollisionHandler;
             return blocks;            
         }
 
-        private static void ButtonBlock_Collision(object sender, EventArgs e)
+        private static void BlockCollisionHandler(object sender, EventArgs e)
         {
             if (sender is PlayBlock)
             {
@@ -108,6 +125,11 @@ namespace Arcanod_SFML_HomeWork
             {
                 Environment.Exit(0);
             }
+            else
+                // if block is in collision with platform or below - it's EndGame
+                if (e is BlockEventArgs && 
+                ((BlockEventArgs)e).EncounteredObject is Platform || ((BlockEventArgs)e).EncounteredObject is BorderUnderPlatform)
+                    Settings.GameMode = GameMode.EndGame;
         }
 
         public static void Play()
