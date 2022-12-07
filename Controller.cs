@@ -13,25 +13,30 @@ namespace Arcanod_SFML_HomeWork
     internal static class Controller
     {
         static Random s_random;
-        private static Queue<IGameObject> s_queueAddObjects = new Queue<IGameObject>();        
+        static GameMode _lastGameMode;
+        private static Queue<IGameObject> s_queueAddObjects = new Queue<IGameObject>();
+        private static int _levelNumber = 0;
         public static View View { get; private set; } = new View();
         public static LinkedList<IGameObject> s_GameObjects { get; private set; }
         public static int Hp { get; private set; }
-
+        public static int LevelNumber { get; private set; }
         public static void GlobalInitialization()
         {
             View.Initialize();
+            Settings.GameMode = GameMode.StartScreen;
             InitializateController();
             s_random = new Random();
+            _lastGameMode = GameMode.StartScreen;
+            View.InitializationGameModeSwitched();            
         }
         public static void InitializateController()
         {
             InitializeGameObjects();
-            Hp = Settings.DefaultHp;
-            Settings.GameMode = GameMode.Play;
+            Hp = Settings.DefaultHp;            
         }
         public static int RandomNumber(int minBound, int maxBound) => s_random.Next(minBound, maxBound);
-        public static void InitializeGameObjects()
+        
+        private static void InitializeGameObjects()
         {
             s_GameObjects = new LinkedList<IGameObject>();
 
@@ -40,7 +45,10 @@ namespace Arcanod_SFML_HomeWork
 
             s_GameObjects.AddLast(mainBall);
             s_GameObjects.AddLast(new Platform());
-            s_GameObjects.AddLast(new Blocks());
+
+            Blocks blocks = CreateBlocksObject();
+            blocks.BlocksAreOver += Blocks_BlocksAreOver;
+            s_GameObjects.AddLast(blocks);
 
             // Left Border
             s_GameObjects.AddLast(new SideBorder(-5, 0, 5, 600));
@@ -49,24 +57,103 @@ namespace Arcanod_SFML_HomeWork
             // Right Border
             s_GameObjects.AddLast(new SideBorder(800, 0, 5, 600));
             // Bottom Border
-            s_GameObjects.AddLast(new BottomBorder(0, 600, 800, 5));  
-                        
+            s_GameObjects.AddLast(new BottomBorder(0, 600, 800, 5));
         }
+
+        private static Blocks CreateBlocksObject()
+        {
+            switch (Settings.GameMode)
+            {
+                case GameMode.Play:
+                    return CreateBlocksObject_PlayMode();                    
+                case GameMode.StartScreen:
+                    return CreateBlocksObject_StartScreenMode();                    
+                default:
+                    return CreateBlocksObject_PlayMode();
+            }
+        }
+
+        private static Blocks CreateBlocksObject_PlayMode()
+        {
+            switch (LevelNumber)
+            {
+                case 1:
+                    return new Blocks(25, 5);                    
+                case 2:
+                    return new Blocks(50, 10);                    
+                case 3:
+                    return new Blocks(80, 8);                    
+                case 4:
+                case 5:
+                    return new Blocks(100, 10);                    
+                default:
+                    return new Blocks(25, 5);                    
+            }
+        }
+
+        private static Blocks CreateBlocksObject_StartScreenMode()
+        {
+            Blocks blocks = new Blocks(3, 2);
+            blocks.IsCollision += ButtonBlock_Collision;
+            return blocks;            
+        }
+
+        private static void ButtonBlock_Collision(object sender, EventArgs e)
+        {
+            if (sender is PlayBlock)
+            {
+                Settings.GameMode = GameMode.ShowingLevelNumber;
+                CheckGameModeSwitched();
+            }
+            else if (sender is ExitBlock)
+            {
+                Environment.Exit(0);
+            }
+        }
+
         public static void Play()
         {
             while (View.IsOpen)
             {
                 View.DispatchEvents();
+                CheckGameModeSwitched();
 
-                if (Settings.GameMode == GameMode.Play)
-                    PlayGameActions();
-                else if (Settings.GameMode == GameMode.EndGame)
-                    EndGameActions();                
+                switch (Settings.GameMode)
+                {
+                    case (GameMode.StartScreen):
+                        StartScreenActions();
+                        break;
+                    case (GameMode.ShowingLevelNumber):
+                        ShowLevelNumber();
+                        break;
+                    case (GameMode.Play):
+                        PlayGameActions();
+                        break;                        
+                    case (GameMode.EndGame):
+                        EndGameActions();
+                        break;
+                }
 
                 // Display window
                 View.Display();
             }
         }     
+
+        public static void CheckGameModeSwitched()
+        {
+            if (Settings.GameMode != _lastGameMode)
+            {
+                _lastGameMode = Settings.GameMode;
+
+                if (Settings.GameMode == GameMode.Play)
+                {
+                    InitializateController();
+                    _levelNumber++;
+                }
+                
+                View.InitializationGameModeSwitched();
+            }
+        }
         public static void PlayGameActions()
         {
             // Checking queue
@@ -86,17 +173,11 @@ namespace Arcanod_SFML_HomeWork
                     ((IMovable)gameObject).Move();
 
             // Checking Collision
-            foreach (IGameObject gameObject in s_GameObjects)
-            {
-                if (gameObject is IColliding)
-                {
-                    foreach (IGameObject anotherObject in s_GameObjects)
-                    {
+            foreach (IGameObject gameObject in s_GameObjects)            
+                if (gameObject is IColliding)                
+                    foreach (IGameObject anotherObject in s_GameObjects)                    
                         if ((anotherObject is IColliding) && (anotherObject != gameObject))
                             ((IColliding)gameObject).CheckCollision((IColliding)anotherObject);
-                    }
-                }
-            }
 
             // Remove destructed objects
             var currentNode = s_GameObjects.First;
@@ -117,6 +198,7 @@ namespace Arcanod_SFML_HomeWork
 
             // Clear window
             View.Clear();
+            View.DrawBackground();
 
             // Draw objects
             foreach (IGameObject gameObject in s_GameObjects)
@@ -125,11 +207,47 @@ namespace Arcanod_SFML_HomeWork
 
             View.DisplayStats();
         }
-        
+
+        public static void StartScreenActions()
+        {
+            // Checking interact
+            foreach (IGameObject gameObject in s_GameObjects)
+                if (gameObject is IInteractive)
+                    ((IInteractive)gameObject).Interact();
+
+            // Moving objects
+            foreach (IGameObject gameObject in s_GameObjects)
+                if (gameObject is IMovable)
+                    ((IMovable)gameObject).Move();
+
+            // Checking Collision
+            foreach (IGameObject gameObject in s_GameObjects)            
+                if (gameObject is IColliding)                
+                    foreach (IGameObject anotherObject in s_GameObjects)                    
+                        if ((anotherObject is IColliding) && (anotherObject != gameObject))
+                            ((IColliding)gameObject).CheckCollision((IColliding)anotherObject);                                                
+
+            // Clear window
+            View.Clear();
+            View.DrawBackground();
+
+            // Draw objects
+            foreach (IGameObject gameObject in s_GameObjects)
+                if (gameObject is IDrawable)
+                    ((IDrawable)gameObject).Draw();
+        }
+
         public static void EndGameActions()
         {
             View.Clear();
             View.DrawEndGameWIndow();
+        }
+        public static void ShowLevelNumber()
+        {
+            View.Clear();
+            View.DrawLevelNumber();
+            Settings.GameMode = GameMode.Play;
+            CheckGameModeSwitched();
         }
         public static void BallDroppedHandler(object sender, EventArgs e)
         {
@@ -142,8 +260,16 @@ namespace Arcanod_SFML_HomeWork
             {
                 Ball ball = sender as Ball;
                 ball.SetStartPosition();                
+            }            
+        }
+        private static void Blocks_BlocksAreOver(object sender, EventArgs e)
+        {
+            if (sender is Blocks && Settings.GameMode == GameMode.Play)
+            {
+                Settings.GameMode = GameMode.ShowingLevelNumber;
+                CheckGameModeSwitched();
             }
-            
+                
         }
         public static void AddExplosiveBall(float xPos, float yPos, float width, float height)
         {

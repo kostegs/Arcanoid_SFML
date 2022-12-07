@@ -4,11 +4,6 @@ using SFML.System;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Security.Policy;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Arcanod_SFML_HomeWork
 {
@@ -30,7 +25,10 @@ namespace Arcanod_SFML_HomeWork
             BlockSprite.Texture = BlockTexture;
         }
         public virtual void Draw() => Controller.View.Draw(BlockSprite);
-        public abstract void CheckCollision(IColliding withObject);        
+        public abstract void CheckCollision(IColliding withObject);   
+        
+        public bool HasCollision(IColliding withObject) => !IsDestroyMode && BlockSprite.GetGlobalBounds().Intersects(withObject.GetSpriteOfObject().GetGlobalBounds());        
+
         public Sprite GetSpriteOfObject() => BlockSprite;
         public virtual void Destroy()
         {
@@ -59,13 +57,7 @@ namespace Arcanod_SFML_HomeWork
         public SimpleBlock() : base() {}
         public override void CheckCollision(IColliding withObject)
         {
-            // Don't check collisions where block is destroyed
-            if (IsDestroyMode)
-                return;
-
-            Sprite spriteObject = withObject.GetSpriteOfObject();
-
-            if (BlockSprite.GetGlobalBounds().Intersects(spriteObject.GetGlobalBounds()))
+            if (HasCollision(withObject))
                 Destroy();
         }
     }
@@ -77,15 +69,17 @@ namespace Arcanod_SFML_HomeWork
             this._block = block;
             InitializeBlock();
         }
-        
+
+        public void SetComponentPosition() => _block.BlockSprite.Position = BlockSprite.Position;
         public override void CheckCollision(IColliding withObject)
         {
-            // Don't check collisions where block is destroyed
-            if (IsDestroyMode)
-                return;
-
             if (_block != null)
                 _block.CheckCollision(withObject);
+        }
+        public override void Move()
+        {
+            base.Move();    
+            _block.BlockSprite.Position = BlockSprite.Position;
         }
     }
     class ExplosiveBlock : Decorator
@@ -101,13 +95,7 @@ namespace Arcanod_SFML_HomeWork
             // Call method check collisions from parent
             base.CheckCollision(withObject);
 
-            // Don't check collisions where block is destroyed
-            if (IsDestroyMode)
-                return;
-
-            Sprite spriteObject = withObject.GetSpriteOfObject();
-
-            if (BlockSprite.GetGlobalBounds().Intersects(spriteObject.GetGlobalBounds()))
+            if (HasCollision(withObject))            
             {
                 // Creating Explosive ball 3*3 simple block's size to destroy neighbours.
                 float spriteWidth = BlockSprite.TextureRect.Width * 3;
@@ -123,39 +111,160 @@ namespace Arcanod_SFML_HomeWork
             }            
         }
     }
-    
+    class GlassBlock : Decorator
+    {
+        
+        private Texture _textureCrack = new Texture(@"./res/CrackedBlock1.png");
+        private int _collisionCounter = 0;
+
+        public GlassBlock(Block block) : base(block)
+        {
+            this.BlockSprite.Position = _block.BlockSprite.Position;
+            this.BlockSprite.Texture = new Texture(@"./res/CrackedBlockDefault.png");
+        }  
+                
+        public override void CheckCollision(IColliding withObject)
+        {
+            if (HasCollision(withObject))
+            {
+                _collisionCounter++;
+                
+                if (_collisionCounter == 1)
+                    BlockSprite.Texture = _textureCrack;
+                else
+                    Destroy();
+            }
+        }        
+    }
+    class HardGlassBlock : Decorator
+    {
+        private Texture _textureCrack1 = new Texture(@"./res/CrackedBlock1.png");
+        private Texture _textureCrack2 = new Texture(@"./res/CrackedBlock2.png");
+        private int _collisionCounter = 0;
+
+        public HardGlassBlock(Block block) : base(block)
+        {
+            this.BlockSprite.Position = _block.BlockSprite.Position;
+            this.BlockSprite.Texture = new Texture(@"./res/CrackedBlock2Default.png");
+        }
+
+        public override void CheckCollision(IColliding withObject)
+        {
+            if (HasCollision(withObject))
+            {
+                _collisionCounter++;
+
+                switch (_collisionCounter)
+                {
+                    case 1:
+                        BlockSprite.Texture = _textureCrack1;
+                        break;
+                    case 2:
+                        BlockSprite.Texture = _textureCrack2;
+                        break;
+                    default:
+                        Destroy();
+                        break;
+                }                
+            }
+        }
+    }
+    abstract class ButtonBlock : Block
+    {
+        public event EventHandler IsCollision;
+
+        public ButtonBlock(EventHandler collisionHandler)
+        {
+            IsCollision += collisionHandler;
+        }
+        public override void CheckCollision(IColliding withObject)
+        {
+            if (HasCollision(withObject))            
+                IsCollision?.Invoke(this, new EventArgs());            
+        }
+        public override void Move() {}
+    }
+    class PlayBlock : ButtonBlock
+    {
+        public PlayBlock(EventHandler collisionHandler) : base(collisionHandler)
+        {
+            Texture playTexture = new Texture(@"./res/PlayButton.png");
+            this.BlockSprite = new Sprite(playTexture);
+            
+        }
+    }
+    class ExitBlock : ButtonBlock
+    {
+        public ExitBlock(EventHandler collisionHandler) : base(collisionHandler)
+        {
+            Texture playTexture = new Texture(@"./res/ExitButton.png");
+            this.BlockSprite = new Sprite(playTexture);
+        }                
+    }
     internal class Blocks : IGameObject, IDrawable, IMovable, IColliding, IInteractive
     {
         public LinkedList<Block> BlockList { get; private set; }
-        Clock _clock = new Clock();
+        public event EventHandler IsCollision;
+        public event EventHandler BlocksAreOver;        
+        Clock _timerForGeneratingBonusBlocks = new Clock();
         
-        public Blocks()
+        public Blocks(int countOfBlocks, int numberOfColumns)
         {
             BlockList = new LinkedList<Block>();
-            for (int i = 0; i < 100; i++)
-                BlockList.AddLast(new SimpleBlock());
-                //BlockList.AddLast(new ExplosiveBlock(new SimpleBlock()));
 
-            SetStartPosition();
-            _clock.Restart();
+            if (Settings.GameMode == GameMode.Play)
+            {
+                for (int i = 1; i <= countOfBlocks; i++)
+                    BlockList.AddLast(new SimpleBlock());
+                SetStartPosition(numberOfColumns);
+                _timerForGeneratingBonusBlocks.Restart();
+            }                
+            else if (Settings.GameMode == GameMode.StartScreen)
+            {
+                PlayBlock playBlock = new PlayBlock(CollisionHandler);
+                SetBlockPosition(playBlock, 0.5f, 1, 75);                
+                BlockList.AddLast(playBlock);
+
+                ExitBlock exitBlock = new ExitBlock(CollisionHandler);
+                SetBlockPosition(exitBlock, 2.5f, 1, 75);                
+                BlockList.AddLast(exitBlock);
+            }            
         }
-        public void SetStartPosition()
+        
+        internal void CollisionHandler(object sender, EventArgs e)
+        {
+            IsCollision?.Invoke(sender, e);
+        }
+        public void SetStartPosition(int numberOfColumns)
         {
             int x = 0;
             int y = 0;
+            
+            // Offset from screen left border. It works only If blocks have width = 15.
+            int xSreenOffset = 75;
 
-            foreach (Block block in BlockList)
+            if (numberOfColumns == 5)
+                xSreenOffset = 227;
+
+                foreach (Block block in BlockList)
             {
-                if (x == 10)
+                if (x == numberOfColumns)
                 {
                     x = 0;
                     y++;
-                }
+                }                
 
-                block.BlockSprite.Position = new Vector2f(x * (block.BlockSprite.TextureRect.Width + 15) + 75,
-                        y * (block.BlockSprite.TextureRect.Height + 15) + 50);
+                SetBlockPosition(block, x, y, xSreenOffset);
                 x++;
             }            
+        }
+        public void SetBlockPosition(Block block, float x, float y, int xSreenOffset)
+        {
+            block.BlockSprite.Position = new Vector2f(x * (block.BlockSprite.TextureRect.Width + 15) + xSreenOffset,
+                        y * (block.BlockSprite.TextureRect.Height + 15) + 50);
+            // Set position for incapsulated inside decorator block. In case where we start game with decorated blocks.
+            if (block is Decorator)
+                ((Decorator)block).SetComponentPosition();
         }
         public void CheckCollision(IColliding withObject)
         {
@@ -179,6 +288,9 @@ namespace Arcanod_SFML_HomeWork
                     BlockList.Remove(lastNode);
                 }
             }
+
+            if (BlockList.Count() == 0)
+                BlocksAreOver?.Invoke(this, new EventArgs());
         }
         
         public void Draw()
@@ -205,10 +317,10 @@ namespace Arcanod_SFML_HomeWork
 
         public void Interact()
         {
-            if (_clock.ElapsedTime.AsSeconds() >= 5)
+            if (_timerForGeneratingBonusBlocks.ElapsedTime.AsSeconds() >= 5)
             {
                 ChangeRandomBlock();
-                _clock.Restart();
+                _timerForGeneratingBonusBlocks.Restart();
             }
             foreach (Block block in BlockList)
                 block.Interact();
@@ -216,7 +328,8 @@ namespace Arcanod_SFML_HomeWork
         }
         private void ChangeRandomBlock()
         {
-            if (BlockList.Count < 3)
+            // Generate new kind of blocks only in playing-mode or If count of blocks > 3.
+            if ((Settings.GameMode != GameMode.Play) || (BlockList.Count < 3))
                 return;
 
             int _rndNumber = Controller.RandomNumber(1, BlockList.Count());
@@ -229,18 +342,43 @@ namespace Arcanod_SFML_HomeWork
                 _counter++;                
                 _currentNode = _currentNode.Next;
                 
+                // If we've enumerated all elements in the list we need to stop
                 if (_currentNode == null)
                     _continueEnumeration = false;
                 else
                 {
+                    // If we found our random block and it isn't destroying 
                     if (_counter >= _rndNumber && !_currentNode.Value.IsDestroyMode)
                     {
-                        _currentNode.Value = new ExplosiveBlock(_currentNode.Value);
+                        _currentNode.Value = GetRandomBonusBlock(_currentNode.Value);
                         _continueEnumeration = false;
                     }
-                }
-                    
+                }                    
             }
+        }
+
+        private Block GetRandomBonusBlock(Block sourceBlock)
+        {
+            int rndNumber = Controller.RandomNumber(1, 4);
+            Block randomBlock;
+
+            switch (rndNumber)
+            {
+                case 1:
+                    randomBlock = new ExplosiveBlock(sourceBlock);
+                    break;
+                case 2:
+                    randomBlock = new GlassBlock(sourceBlock);
+                    break;
+                case 3:
+                    randomBlock = new HardGlassBlock(sourceBlock);
+                    break;
+                default:
+                    randomBlock = new ExplosiveBlock(sourceBlock);
+                    break;
+            }
+
+            return randomBlock;
         }
     }
 }

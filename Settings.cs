@@ -3,7 +3,9 @@ namespace Arcanod_SFML_HomeWork
 {
     public enum GameMode : byte
     {
+        StartScreen,
         Play,
+        ShowingLevelNumber,
         EndLevel,
         EndGame
     }
