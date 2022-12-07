@@ -34,8 +34,11 @@ namespace Arcanod_SFML_HomeWork
         {
             if (!IsDestroyMode)
             {
-                BlockTexture = new Texture(@"./res/DestroyingBlock.png");
-                BlockSprite.Texture = BlockTexture;
+                BlockTexture = new Texture(@"./res/Explosion.png");
+                //BlockSprite.Texture = BlockTexture;
+                Vector2f savedPos = BlockSprite.Position;
+                BlockSprite = new Sprite(BlockTexture);
+                BlockSprite.Position = new Vector2f(savedPos.X, savedPos.Y - 15);
                 IsDestroyMode = true;
                 _destroyTimer.Restart();
             }
@@ -114,7 +117,7 @@ namespace Arcanod_SFML_HomeWork
     class GlassBlock : Decorator
     {
         
-        private Texture _textureCrack = new Texture(@"./res/CrackedBlock1.png");
+        private Texture _textureCrack = new Texture(@"./res/CrackedBlock_Wrecked.png");
         private int _collisionCounter = 0;
 
         public GlassBlock(Block block) : base(block)
@@ -138,8 +141,8 @@ namespace Arcanod_SFML_HomeWork
     }
     class HardGlassBlock : Decorator
     {
-        private Texture _textureCrack1 = new Texture(@"./res/CrackedBlock1.png");
-        private Texture _textureCrack2 = new Texture(@"./res/CrackedBlock2.png");
+        private Texture _textureCrack1 = new Texture(@"./res/CrackedBlock2_Wrecked.png");
+        private Texture _textureCrack2 = new Texture(@"./res/CrackedBlock2_Wrecked2.png");
         private int _collisionCounter = 0;
 
         public HardGlassBlock(Block block) : base(block)
@@ -214,8 +217,12 @@ namespace Arcanod_SFML_HomeWork
 
             if (Settings.GameMode == GameMode.Play)
             {
-                for (int i = 1; i <= countOfBlocks; i++)
-                    BlockList.AddLast(new SimpleBlock());
+                for (int i = 1; i <= countOfBlocks; i++)                
+                    if (Controller.LevelNumber == 5)
+                        BlockList.AddLast(new ExplosiveBlock(new SimpleBlock()));
+                    else
+                        BlockList.AddLast(new SimpleBlock());
+
                 SetStartPosition(numberOfColumns);
                 _timerForGeneratingBonusBlocks.Restart();
             }                

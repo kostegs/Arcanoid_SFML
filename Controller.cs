@@ -14,12 +14,11 @@ namespace Arcanod_SFML_HomeWork
     {
         static Random s_random;
         static GameMode _lastGameMode;
-        private static Queue<IGameObject> s_queueAddObjects = new Queue<IGameObject>();
-        private static int _levelNumber = 0;
+        private static Queue<IGameObject> s_queueAddObjects = new Queue<IGameObject>();        
         public static View View { get; private set; } = new View();
         public static LinkedList<IGameObject> s_GameObjects { get; private set; }
         public static int Hp { get; private set; }
-        public static int LevelNumber { get; private set; }
+        public static int LevelNumber { get; private set; } = 1;
         public static void GlobalInitialization()
         {
             View.Initialize();
@@ -102,7 +101,7 @@ namespace Arcanod_SFML_HomeWork
         {
             if (sender is PlayBlock)
             {
-                Settings.GameMode = GameMode.ShowingLevelNumber;
+                Settings.GameMode = GameMode.ShowingLevelNumber;                
                 CheckGameModeSwitched();
             }
             else if (sender is ExitBlock)
@@ -143,15 +142,11 @@ namespace Arcanod_SFML_HomeWork
         {
             if (Settings.GameMode != _lastGameMode)
             {
-                _lastGameMode = Settings.GameMode;
-
-                if (Settings.GameMode == GameMode.Play)
-                {
-                    InitializateController();
-                    _levelNumber++;
-                }
+                if (Settings.GameMode == GameMode.Play)                
+                    InitializateController();                
                 
                 View.InitializationGameModeSwitched();
+                _lastGameMode = Settings.GameMode;
             }
         }
         public static void PlayGameActions()
@@ -266,6 +261,8 @@ namespace Arcanod_SFML_HomeWork
         {
             if (sender is Blocks && Settings.GameMode == GameMode.Play)
             {
+                LevelNumber++;
+                LevelNumber = LevelNumber > 5 ? 1 : LevelNumber;
                 Settings.GameMode = GameMode.ShowingLevelNumber;
                 CheckGameModeSwitched();
             }

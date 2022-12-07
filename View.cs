@@ -33,7 +33,7 @@ namespace Arcanod_SFML_HomeWork
             switch (ProjectSettings.GameMode)
             {
                 case GameMode.Play:
-                    _backgroundTexture = new Texture("./res/Background.png");
+                    _backgroundTexture = new Texture($"./res/Level{Controller.LevelNumber}_Background.png");
                     _backgroundImageSprite = new Sprite(_backgroundTexture);
                     break;
                 case GameMode.StartScreen:
@@ -89,10 +89,11 @@ namespace Arcanod_SFML_HomeWork
         }
         public void DrawLevelNumber()
         {
+            int levelNumber = Controller.LevelNumber;
             Clock delayTimer = new Clock();
             Sprite sprite = new Sprite(_levelNumberTexture);
-            sprite.Position = new Vector2f(150, 200);
-            sprite.TextureRect = new IntRect(0, 0, 500, 150);
+            sprite.Position = new Vector2f(150, 200);            
+            sprite.TextureRect = levelNumber == 5 ? new IntRect(0, 150 * (levelNumber - 1), 500, 320) : new IntRect(0, 150 * (levelNumber - 1), 500, 150);
 
             while (true)
             {
