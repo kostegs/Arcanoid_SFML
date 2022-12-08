@@ -6,7 +6,7 @@ namespace Arcanod_SFML_HomeWork
         StartScreen,
         Play,
         ShowingLevelNumber,
-        EndLevel,
+        Pause,
         EndGame
     }
     public struct Settings

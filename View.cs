@@ -18,6 +18,9 @@ namespace Arcanod_SFML_HomeWork
         private Sprite _backgroundImageSprite;
         private Texture _levelNumberTexture = new Texture("./res/LevelNumberTextures.png");
 
+        public event EventHandler<KeyEventArgs> IsKeyPressed;
+        public event EventHandler WindowLostFocus_Event;
+
         public View() : base(new VideoMode(800, 600), "Arcanoid") { }
 
         public void Initialize()
@@ -25,7 +28,10 @@ namespace Arcanod_SFML_HomeWork
             SetFont(@"./res/comic.ttf");
             SetFramerateLimit(60);
             Closed += Window_Closed;
+            KeyPressed += View_KeyPressed;
+            LostFocus += View_LostFocus;
             SetMouseCursorVisible(false);
+            
         }
 
         public void InitializationGameModeSwitched()
@@ -84,9 +90,14 @@ namespace Arcanod_SFML_HomeWork
                 xPos += hpSprite.TextureRect.Width + 5;
                 Draw(hpSprite);
             }
-
         }
         
+        public void DrawPauseScreen()
+        {
+            Clear();
+            SetFillColor(255, 255, 255);
+            DrawText(376, 300, "Pause", 24);            
+        }
         public void DrawLevelNumber()
         {
             int levelNumber = Controller.LevelNumber;
@@ -108,5 +119,10 @@ namespace Arcanod_SFML_HomeWork
 
         }
         private void Window_Closed(object sender, EventArgs e) => Close();
+
+        private void View_KeyPressed(object sender, KeyEventArgs e) => IsKeyPressed?.Invoke(sender, e);
+
+        private void View_LostFocus(object sender, EventArgs e) => WindowLostFocus_Event?.Invoke(sender, e);
+        
     }
 }

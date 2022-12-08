@@ -2,6 +2,7 @@
 using Arcanod_SFML_HomeWork.Models;
 using SFML.Audio;
 using SFML.System;
+using SFML.Window;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -27,7 +28,7 @@ namespace Arcanod_SFML_HomeWork
         {
             if (!list.TryGetValue(name, out var value))
             {
-                Console.WriteLine("Resource with name {0} not found!", name);
+                //Console.WriteLine("Resource with name {0} not found!", name);
                 return (T)value;
             }
 
@@ -80,6 +81,8 @@ namespace Arcanod_SFML_HomeWork
             s_random = new Random();
             _lastGameMode = GameMode.StartScreen;
             View.InitializationGameModeSwitched();
+            View.IsKeyPressed += View_KeyPressed;
+            View.WindowLostFocus_Event += View_WindowLostFocus_Event;
             Hp = Settings.DefaultHp;
             _explosionSound = LoadSound(@"./res/Explosion.ogg");
             _ballSound = LoadSound(@"./res/BallSound.ogg");
@@ -91,6 +94,7 @@ namespace Arcanod_SFML_HomeWork
 
             PlayMusic(_startScreenMusic, 45);
         }
+
         public static void InitializateController()
         {
             InitializeGameObjects();            
@@ -190,6 +194,7 @@ namespace Arcanod_SFML_HomeWork
             while (View.IsOpen)
             {
                 View.DispatchEvents();
+                CheckEvents();
                 CheckGameModeSwitched();
 
                 switch (Settings.GameMode)
@@ -206,12 +211,21 @@ namespace Arcanod_SFML_HomeWork
                     case (GameMode.EndGame):
                         EndGameActions();
                         break;
+                    case (GameMode.Pause):
+                        View.DrawPauseScreen();
+                        break;
                 }
 
                 // Display window
                 View.Display();
             }
         }     
+
+        private static void CheckEvents()
+        {
+            
+
+        }
 
         public static void CheckGameModeSwitched()
         {
@@ -351,7 +365,7 @@ namespace Arcanod_SFML_HomeWork
             if ((sender is Ball) &&
                 (e is CollisionEventArgs) &&
                 ((CollisionEventArgs)e).EncounteredObject is Platform)
-                    PlaySound(_ballSound, 30);
+                    PlaySound(_ballSound, 25);
 
         }
 
@@ -369,7 +383,7 @@ namespace Arcanod_SFML_HomeWork
             else
             {
                 if (sender is GlassBlock || sender is HardGlassBlock)
-                    PlaySound(_crackedBlockSound, 55);
+                    PlaySound(_crackedBlockSound, 45);
                 else
                     PlaySound(_explosionSound, 85);
 
@@ -391,6 +405,24 @@ namespace Arcanod_SFML_HomeWork
             }
                 
         }
+        private static void View_KeyPressed(object sender, KeyEventArgs e)
+        {
+            if (e.Code == Keyboard.Key.Escape)
+            {
+                if (Settings.GameMode == GameMode.Play)
+                    Settings.GameMode = GameMode.Pause;
+                else if (Settings.GameMode == GameMode.Pause)
+                    Settings.GameMode = GameMode.Play;
+
+                _lastGameMode = Settings.GameMode;
+            }            
+        }
+        private static void View_WindowLostFocus_Event(object sender, EventArgs e)
+        {
+            if (Settings.GameMode == GameMode.Play)
+                Settings.GameMode = _lastGameMode = GameMode.Pause;            
+        }
+
         public static void AddExplosiveBall(float xPos, float yPos, float width, float height)
         {
             IGameObject explosiveBall = new ExplosiveObject(new Vector2f(xPos, yPos), width, height);

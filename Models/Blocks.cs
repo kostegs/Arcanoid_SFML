@@ -302,10 +302,10 @@ namespace Arcanod_SFML_HomeWork
             foreach (Block block in BlockList)
                 block.Draw();
 
-            Console.SetCursorPosition(0, 0);
+            /*Console.SetCursorPosition(0, 0);
             Console.Write("   ");
             Console.SetCursorPosition(0, 0);
-            Console.Write(BlockList.Count());
+            Console.Write(BlockList.Count());*/
         }
 
         public Sprite GetSpriteOfObject() => new Sprite();
