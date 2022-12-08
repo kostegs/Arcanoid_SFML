@@ -1,11 +1,11 @@
-﻿using Arcanod_SFML_HomeWork.Interfaces;
+﻿using Arcanoid_SFML.Interfaces;
 using SFML.Graphics;
 using SFML.System;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Arcanod_SFML_HomeWork
+namespace Arcanoid_SFML
 {
     internal class CollisionEventArgs : EventArgs
     {
@@ -17,9 +17,9 @@ namespace Arcanod_SFML_HomeWork
     }
     internal abstract class Block : IGameObject, IDrawable, IMovable, IDestroyable, IColliding, IInteractive
     {
-        private Clock _destroyTimer;
+        protected Clock _destroyTimer;
         private float _speed;
-        public bool IsDestroyMode { get; private set; }
+        public bool IsDestroyMode { get; protected set; }
         
         public Texture BlockTexture { get; set; }
         public Sprite BlockSprite { get; set; } = new Sprite();
@@ -115,7 +115,7 @@ namespace Arcanod_SFML_HomeWork
     }
     class GlassBlock : Block
     {
-        
+
         private Texture _textureCrack = new Texture(@"./res/CrackedBlock_Wrecked.png");
         private int _collisionCounter = 0;
 
@@ -123,20 +123,20 @@ namespace Arcanod_SFML_HomeWork
         {
             this.BlockSprite.Position = baseBlock.BlockSprite.Position;
             this.BlockSprite.Texture = new Texture(@"./res/CrackedBlockDefault.png");
-        }  
-                
+        }
+
         public override void CheckCollision(IColliding withObject)
         {
             if (HasCollision(withObject))
             {
                 _collisionCounter++;
                 
-                if (_collisionCounter == 1)
-                    BlockSprite.Texture = _textureCrack;
-                else
-                    Destroy();
+                if (_collisionCounter == 1)                
+                    BlockSprite.Texture = _textureCrack;                                    
+                else                
+                    Destroy();                                    
             }
-        }        
+        }       
     }
     class HardGlassBlock : Block
     {
@@ -165,11 +165,11 @@ namespace Arcanod_SFML_HomeWork
                         BlockSprite.Texture = _textureCrack2;
                         break;
                     default:
-                        Destroy();
+                        Destroy();                        
                         break;
                 }                
             }
-        }
+        }        
     }
     abstract class ButtonBlock : Block
     {
@@ -223,7 +223,7 @@ namespace Arcanod_SFML_HomeWork
                 SetStartPosition(numberOfColumns);
                 _timerForGeneratingBonusBlocks.Restart();
             }                
-            else if (Settings.GameMode == GameMode.StartScreen || Settings.GameMode == GameMode.EndGame)
+            else if (Settings.GameMode == GameMode.StartScreen || Settings.GameMode == GameMode.EndGame || Settings.GameMode == GameMode.WinGame)
             {
                 PlayBlock playBlock = new PlayBlock();
                 SetBlockPosition(playBlock, 0.2f, 2, 75);           

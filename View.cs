@@ -2,11 +2,9 @@
 using SFML.System;
 using SFML.Window;
 using System;
-using ProjectSettings = Arcanod_SFML_HomeWork.Settings;
-using System.Reflection.Emit;
-using System.Threading;
+using ProjectSettings = Arcanoid_SFML.Settings;
 
-namespace Arcanod_SFML_HomeWork
+namespace Arcanoid_SFML
 {
     internal class View : RenderWindow
     {
@@ -30,8 +28,7 @@ namespace Arcanod_SFML_HomeWork
             Closed += Window_Closed;
             KeyPressed += View_KeyPressed;
             LostFocus += View_LostFocus;
-            SetMouseCursorVisible(false);
-            
+            SetMouseCursorVisible(false);            
         }
 
         public void InitializationGameModeSwitched()
@@ -50,6 +47,10 @@ namespace Arcanod_SFML_HomeWork
                     _backgroundTexture = new Texture("./res/BackgroundEndGame.png");
                     _backgroundImageSprite = new Sprite(_backgroundTexture);
                     break;
+                case GameMode.WinGame:
+                    _backgroundTexture = new Texture("./res/BackgroundWinGame.png");
+                    _backgroundImageSprite = new Sprite(_backgroundTexture);
+                    break;
                 default:
                     _backgroundImageSprite = new Sprite();
                     break;
@@ -60,16 +61,19 @@ namespace Arcanod_SFML_HomeWork
         {
             Draw(_backgroundImageSprite);
         }
+
         public void SetFont(string path)
         {
             _currentFont = new Font(path);
             _label = new Text();
             _label.Font = _currentFont;
         }
+
         public void SetFillColor(byte red, byte green, byte blue)
         {
             _fillColor = new Color(red, green, blue);
         }
+
         public void DrawText(int x, int y, string text, uint size = 12u)
         {
             _label.DisplayedString = text;
@@ -78,6 +82,7 @@ namespace Arcanod_SFML_HomeWork
             _label.FillColor = _fillColor;
             Draw(_label);
         }
+
         public void DisplayStats()
         {
             float xPos, yPos;
@@ -98,6 +103,7 @@ namespace Arcanod_SFML_HomeWork
             SetFillColor(255, 255, 255);
             DrawText(376, 300, "Pause", 24);            
         }
+
         public void DrawLevelNumber()
         {
             int levelNumber = Controller.LevelNumber;
@@ -118,6 +124,7 @@ namespace Arcanod_SFML_HomeWork
             }
 
         }
+
         private void Window_Closed(object sender, EventArgs e) => Close();
 
         private void View_KeyPressed(object sender, KeyEventArgs e) => IsKeyPressed?.Invoke(sender, e);

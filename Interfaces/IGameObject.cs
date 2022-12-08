@@ -1,5 +1,5 @@
 ﻿
-namespace Arcanod_SFML_HomeWork.Interfaces
+namespace Arcanoid_SFML.Interfaces
 {
     internal interface IGameObject
     {

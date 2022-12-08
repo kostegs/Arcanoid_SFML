@@ -1,5 +1,5 @@
 ﻿
-namespace Arcanod_SFML_HomeWork
+namespace Arcanoid_SFML
 {
     public enum GameMode : byte
     {
@@ -7,6 +7,7 @@ namespace Arcanod_SFML_HomeWork
         Play,
         ShowingLevelNumber,
         Pause,
+        WinGame,
         EndGame
     }
     public struct Settings

@@ -1,18 +1,9 @@
-﻿using Arcanod_SFML_HomeWork.Interfaces;
-using Arcanod_SFML_HomeWork.Models;
+﻿using Arcanoid_SFML.Interfaces;
 using SFML.Graphics;
 using SFML.System;
 using SFML.Window;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics.Tracing;
-using System.Linq;
-using System.Runtime.Remoting.Messaging;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Arcanod_SFML_HomeWork
+namespace Arcanoid_SFML
 {
     internal class Platform : IGameObject, IInteractive, IMovable, IDrawable, IColliding
     {

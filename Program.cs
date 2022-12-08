@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Arcanod_SFML_HomeWork
+﻿
+namespace Arcanoid_SFML
 {
     internal class Program
     {

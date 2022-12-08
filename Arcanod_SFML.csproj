@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{62E3A740-47DA-4F5B-9426-46DBF66B755A}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>Arcanod_SFML_HomeWork</RootNamespace>
-    <AssemblyName>Arcanod_SFML_HomeWork</AssemblyName>
+    <RootNamespace>Arcanod_SFML</RootNamespace>
+    <AssemblyName>Arcanod_SFML</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
