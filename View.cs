@@ -40,6 +40,10 @@ namespace Arcanod_SFML_HomeWork
                     _backgroundTexture = new Texture("./res/BackgroundStartScreen.png");
                     _backgroundImageSprite = new Sprite(_backgroundTexture);
                     break;
+                case GameMode.EndGame:
+                    _backgroundTexture = new Texture("./res/BackgroundEndGame.png");
+                    _backgroundImageSprite = new Sprite(_backgroundTexture);
+                    break;
                 default:
                     _backgroundImageSprite = new Sprite();
                     break;
@@ -82,11 +86,7 @@ namespace Arcanod_SFML_HomeWork
             }
 
         }
-        public void DrawEndGameWIndow()
-        {
-            SetFillColor(255, 255, 255);
-            DrawText(350, 300, "End Game :(", 30);
-        }
+        
         public void DrawLevelNumber()
         {
             int levelNumber = Controller.LevelNumber;

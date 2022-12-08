@@ -1,20 +1,73 @@
 ﻿using Arcanod_SFML_HomeWork.Interfaces;
 using Arcanod_SFML_HomeWork.Models;
+using SFML.Audio;
 using SFML.System;
 using System;
-using System.CodeDom;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Arcanod_SFML_HomeWork
 {
+    public class ResourceList<T> : IEnumerable where T : class 
+    {
+        private Dictionary<string, object> list;
+
+        public ResourceList(int amountResource)
+        {
+            list = new Dictionary<string, object>(amountResource);
+        }
+
+        public ResourceList()
+        {
+            list = new Dictionary<string, object>();
+        }
+
+        public T Get(string name)
+        {
+            if (!list.TryGetValue(name, out var value))
+            {
+                Console.WriteLine("Resource with name {0} not found!", name);
+                return (T)value;
+            }
+
+            return (T)value;
+        }
+
+        public T Add(string name, T resource)
+        {
+            if (list.TryGetValue(name, out var value))
+            {
+                return (T)value;
+            }
+
+            list.Add(name, resource);
+            return resource;
+        }
+
+        public IEnumerator GetEnumerator()
+        {
+            return list.GetEnumerator();
+        }
+    }
+
     internal static class Controller
     {
         static Random s_random;
         static GameMode _lastGameMode;
-        private static Queue<IGameObject> s_queueAddObjects = new Queue<IGameObject>();        
+        private static Queue<IGameObject> s_queueAddObjects = new Queue<IGameObject>();
+        private static string _explosionSound;
+        private static string _startScreenMusic;
+        private static string _playGameMusic;
+        private static string _endGameMusic;
+        private static string _ballSound;
+        private static string _crackedBlockSound;
+        public static ResourceList<Sound> Sounds { get; set; } = new ResourceList<Sound>(10);
+
+        public static ResourceList<Music> Musics { get; set; } = new ResourceList<Music>(10);
+
+        public static ResourceList<SoundBuffer> SoundsBuffers { get; set; } = new ResourceList<SoundBuffer>(10);
+
         public static View View { get; private set; } = new View();
         public static LinkedList<IGameObject> s_GameObjects { get; private set; }
         public static int Hp { get; private set; }
@@ -26,12 +79,28 @@ namespace Arcanod_SFML_HomeWork
             InitializateController();
             s_random = new Random();
             _lastGameMode = GameMode.StartScreen;
-            View.InitializationGameModeSwitched();            
+            View.InitializationGameModeSwitched();
+            Hp = Settings.DefaultHp;
+            _explosionSound = LoadSound(@"./res/Explosion.ogg");
+            _ballSound = LoadSound(@"./res/BallSound.ogg");
+            _crackedBlockSound = LoadSound(@"./res/CrackedBlock_Sound.ogg");
+
+            _startScreenMusic = LoadMusic(@"./res/StartScreen_Music.ogg");
+            _playGameMusic = LoadMusic(@"./res/PlayGame_Music.ogg");
+            _endGameMusic = LoadMusic(@"./res/EndGame_Music.ogg");
+
+            PlayMusic(_startScreenMusic, 45);
         }
         public static void InitializateController()
         {
-            InitializeGameObjects();
-            Hp = Settings.DefaultHp;            
+            InitializeGameObjects();            
+        }
+        public static void RestartGame()
+        {
+            Hp = Settings.DefaultHp;
+            Settings.GameMode = GameMode.ShowingLevelNumber;
+            LevelNumber = 1;
+            View.InitializationGameModeSwitched();            
         }
         public static int RandomNumber(int minBound, int maxBound) => s_random.Next(minBound, maxBound);
         
@@ -41,6 +110,7 @@ namespace Arcanod_SFML_HomeWork
 
             Ball mainBall = new Ball();
             mainBall.BallDropped += BallDroppedHandler;
+            mainBall.IsCollision += BallCollisionHandler;
 
             s_GameObjects.AddLast(mainBall);
             s_GameObjects.AddLast(new Platform());
@@ -68,6 +138,7 @@ namespace Arcanod_SFML_HomeWork
                 case GameMode.Play:
                     return CreateBlocksObject_PlayMode();                    
                 case GameMode.StartScreen:
+                case GameMode.EndGame:
                     return CreateBlocksObject_StartScreenMode();                    
                 default:
                     return CreateBlocksObject_PlayMode();
@@ -114,24 +185,6 @@ namespace Arcanod_SFML_HomeWork
             return blocks;            
         }
 
-        private static void BlockCollisionHandler(object sender, EventArgs e)
-        {
-            if (sender is PlayBlock)
-            {
-                Settings.GameMode = GameMode.ShowingLevelNumber;                
-                CheckGameModeSwitched();
-            }
-            else if (sender is ExitBlock)
-            {
-                Environment.Exit(0);
-            }
-            else
-                // if block is in collision with platform or below - it's EndGame
-                if (e is BlockEventArgs && 
-                ((BlockEventArgs)e).EncounteredObject is Platform || ((BlockEventArgs)e).EncounteredObject is BorderUnderPlatform)
-                    Settings.GameMode = GameMode.EndGame;
-        }
-
         public static void Play()
         {
             while (View.IsOpen)
@@ -164,8 +217,25 @@ namespace Arcanod_SFML_HomeWork
         {
             if (Settings.GameMode != _lastGameMode)
             {
-                if (Settings.GameMode == GameMode.Play)                
-                    InitializateController();                
+                if (_lastGameMode == GameMode.EndGame)
+                    RestartGame();
+
+                if (Settings.GameMode == GameMode.Play)
+                {
+                    InitializateController();
+                    foreach (KeyValuePair<string, object> music in Musics)
+                        (music.Value as Music).Stop();
+                    //StopMusic(_startScreenMusic);
+                    PlayMusic(_playGameMusic, 45);                    
+                }
+                else if (Settings.GameMode == GameMode.EndGame)
+                {
+                    InitializateController();
+                    foreach (KeyValuePair<string, object> music in Musics)
+                        (music.Value as Music).Stop();
+                    //StopMusic(_playGameMusic);
+                    PlayMusic(_endGameMusic, 45);
+                }
                 
                 View.InitializationGameModeSwitched();
                 _lastGameMode = Settings.GameMode;
@@ -225,7 +295,10 @@ namespace Arcanod_SFML_HomeWork
             View.DisplayStats();
         }
 
-        public static void StartScreenActions()
+        public static void StartScreenActions() => ChoosePlayOrExitActions();
+
+        public static void EndGameActions() => ChoosePlayOrExitActions();
+        public static void ChoosePlayOrExitActions()
         {
             // Checking interact
             foreach (IGameObject gameObject in s_GameObjects)
@@ -238,11 +311,11 @@ namespace Arcanod_SFML_HomeWork
                     ((IMovable)gameObject).Move();
 
             // Checking Collision
-            foreach (IGameObject gameObject in s_GameObjects)            
-                if (gameObject is IColliding)                
-                    foreach (IGameObject anotherObject in s_GameObjects)                    
+            foreach (IGameObject gameObject in s_GameObjects)
+                if (gameObject is IColliding)
+                    foreach (IGameObject anotherObject in s_GameObjects)
                         if ((anotherObject is IColliding) && (anotherObject != gameObject))
-                            ((IColliding)gameObject).CheckCollision((IColliding)anotherObject);                                                
+                            ((IColliding)gameObject).CheckCollision((IColliding)anotherObject);
 
             // Clear window
             View.Clear();
@@ -252,12 +325,6 @@ namespace Arcanod_SFML_HomeWork
             foreach (IGameObject gameObject in s_GameObjects)
                 if (gameObject is IDrawable)
                     ((IDrawable)gameObject).Draw();
-        }
-
-        public static void EndGameActions()
-        {
-            View.Clear();
-            View.DrawEndGameWIndow();
         }
         public static void ShowLevelNumber()
         {
@@ -279,6 +346,40 @@ namespace Arcanod_SFML_HomeWork
                 ball.SetStartPosition();                
             }            
         }
+        public static void BallCollisionHandler(object sender, EventArgs e)
+        {
+            if ((sender is Ball) &&
+                (e is CollisionEventArgs) &&
+                ((CollisionEventArgs)e).EncounteredObject is Platform)
+                    PlaySound(_ballSound, 30);
+
+        }
+
+        private static void BlockCollisionHandler(object sender, EventArgs e)
+        {
+            if (sender is PlayBlock)
+            {
+                Settings.GameMode = GameMode.ShowingLevelNumber;
+                CheckGameModeSwitched();
+            }
+            else if (sender is ExitBlock)
+            {
+                Environment.Exit(0);
+            }
+            else
+            {
+                if (sender is GlassBlock || sender is HardGlassBlock)
+                    PlaySound(_crackedBlockSound, 55);
+                else
+                    PlaySound(_explosionSound, 85);
+
+                // if block is in collision with platform or below - it's EndGame
+                if (e is CollisionEventArgs &&
+                    ((CollisionEventArgs)e).EncounteredObject is Platform || ((CollisionEventArgs)e).EncounteredObject is BorderUnderPlatform)
+                    Settings.GameMode = GameMode.EndGame;
+            }
+        }
+
         private static void Blocks_BlocksAreOver(object sender, EventArgs e)
         {
             if (sender is Blocks && Settings.GameMode == GameMode.Play)
@@ -294,6 +395,65 @@ namespace Arcanod_SFML_HomeWork
         {
             IGameObject explosiveBall = new ExplosiveObject(new Vector2f(xPos, yPos), width, height);
             s_queueAddObjects.Enqueue(explosiveBall);            
+        }
+
+        public static string LoadSound(string path)
+        {
+            SoundBuffer buffer = SoundsBuffers.Add(path, new SoundBuffer(path));
+            Sounds.Add(path, new Sound(buffer));
+            return path;
+        }
+
+        public static void PlaySound(string name)
+        {
+            Sound sound = Sounds.Get(name);
+            if (sound.Status != SoundStatus.Playing)
+            {
+                sound.Play();
+            }
+        }
+        public static void PlaySound(string name, float volume)
+        {
+            Sound sound = Sounds.Get(name);
+            sound.Volume = volume;
+            if (sound.Status == SoundStatus.Playing)
+                sound.Stop();
+            
+            sound.Play();            
+        }
+        public static string LoadMusic(string path)
+        {
+            Musics.Add(path, new Music(path));
+            return path;
+        }
+
+        public static void PlayMusic(string name)
+        {
+            Music music = Musics.Get(name);
+            if (music.Status != SoundStatus.Playing)
+            {
+                music.Loop = true;
+                music.Play();
+            }
+        }
+
+        public static void PlayMusic(string name, float volume)
+        {
+            Music music = Musics.Get(name);
+            music.Volume = volume;            
+            if (music.Status != SoundStatus.Playing)
+            {
+                music.Loop = true;
+                music.Play();
+            }
+        }
+
+        public static void StopMusic(string name)
+        {
+            Music music = Musics.Get(name);
+
+            if (music.Status == SoundStatus.Playing)
+                music.Stop();
         }
     }
 }

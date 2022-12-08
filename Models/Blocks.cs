@@ -7,18 +7,20 @@ using System.Linq;
 
 namespace Arcanod_SFML_HomeWork
 {
-    internal class BlockEventArgs : EventArgs
+    internal class CollisionEventArgs : EventArgs
     {
         internal IColliding EncounteredObject;
-        public BlockEventArgs(IColliding gameObject)
+        public CollisionEventArgs(IColliding gameObject)
         {
             EncounteredObject = gameObject;
         }
     }
     internal abstract class Block : IGameObject, IDrawable, IMovable, IDestroyable, IColliding, IInteractive
     {
-        public bool IsDestroyMode { get; private set; }
         private Clock _destroyTimer;
+        private float _speed;
+        public bool IsDestroyMode { get; private set; }
+        
         public Texture BlockTexture { get; set; }
         public Sprite BlockSprite { get; set; } = new Sprite();
         public bool AllowToDestroy { get; set; }
@@ -41,7 +43,7 @@ namespace Arcanod_SFML_HomeWork
             bool isCollision = !IsDestroyMode && BlockSprite.GetGlobalBounds().Intersects(withObject.GetSpriteOfObject().GetGlobalBounds());
 
             if (isCollision)
-                IsCollisionEvent?.Invoke(this, new BlockEventArgs(withObject));
+                IsCollisionEvent?.Invoke(this, new CollisionEventArgs(withObject));
             
             return isCollision;
         }  
@@ -62,7 +64,13 @@ namespace Arcanod_SFML_HomeWork
         public virtual void Move()
         {
             Vector2f _direction = new Vector2f(0, 1);
-            BlockSprite.Position += _direction * 0.03f;            
+            
+            if (Controller.LevelNumber > 2)
+                _speed = 0.02f;
+            else
+                _speed = 0.04f;
+
+            BlockSprite.Position += _direction * _speed;
         }
 
         public void Interact()
@@ -215,7 +223,7 @@ namespace Arcanod_SFML_HomeWork
                 SetStartPosition(numberOfColumns);
                 _timerForGeneratingBonusBlocks.Restart();
             }                
-            else if (Settings.GameMode == GameMode.StartScreen)
+            else if (Settings.GameMode == GameMode.StartScreen || Settings.GameMode == GameMode.EndGame)
             {
                 PlayBlock playBlock = new PlayBlock();
                 SetBlockPosition(playBlock, 0.2f, 2, 75);           
@@ -300,10 +308,7 @@ namespace Arcanod_SFML_HomeWork
             Console.Write(BlockList.Count());
         }
 
-        public Sprite GetSpriteOfObject()
-        {
-            return new Sprite();
-        }
+        public Sprite GetSpriteOfObject() => new Sprite();
 
         public void Move()
         {
@@ -374,6 +379,7 @@ namespace Arcanod_SFML_HomeWork
                     break;
             }
 
+            randomBlock.IsCollisionEvent += CollisionHandler;
             return randomBlock;
         }
     }

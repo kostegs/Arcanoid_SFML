@@ -21,6 +21,7 @@ namespace Arcanod_SFML_HomeWork
 
         public Sprite BallSprite { get; protected set; }
         public event EventHandler BallDropped;
+        public event EventHandler IsCollision;
 
         public Ball()
         {
@@ -75,6 +76,8 @@ namespace Arcanod_SFML_HomeWork
 
         public virtual void CheckCollision(IColliding withObject)
         {
+            bool hasCollision = false;
+
             if (withObject is Blocks)
             {
                 foreach (Block block in ((Blocks)withObject).BlockList)
@@ -87,6 +90,7 @@ namespace Arcanod_SFML_HomeWork
                     // If we have collision, we don't need continue the cycle.
                     if (BallSprite.GetGlobalBounds().Intersects(withObjectSprite.GetGlobalBounds()))
                     {
+                        hasCollision = true;
                         _direction.Y *= -1;
                         break;
                     }                                        
@@ -97,6 +101,8 @@ namespace Arcanod_SFML_HomeWork
                 Sprite withObjectSprite = ((IColliding)withObject).GetSpriteOfObject();
                 if (BallSprite.GetGlobalBounds().Intersects(withObjectSprite.GetGlobalBounds()))
                 {
+                    hasCollision = true;
+
                     if (withObject is SideBorder)
                         _direction.X *= -1;
                     else if (withObject is TopBorder)
@@ -111,6 +117,8 @@ namespace Arcanod_SFML_HomeWork
 
                 if (BallSprite.GetGlobalBounds().Intersects(withObjectSprite.GetGlobalBounds()))
                 {
+                    hasCollision = true;
+
                     if (withObject is Platform)
                     {
                         _direction.Y = -1;
@@ -119,6 +127,10 @@ namespace Arcanod_SFML_HomeWork
                     }
                 }
             }
+
+            if (hasCollision)
+                IsCollision?.Invoke(this, new CollisionEventArgs(withObject));
+
         }
         public Sprite GetSpriteOfObject() => BallSprite;        
     }    
