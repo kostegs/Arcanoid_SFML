@@ -106,7 +106,7 @@ namespace Arcanoid_SFML
                 float yPos = BlockSprite.Position.Y - BlockSprite.TextureRect.Height;
 
                 // Ask controller to put explosive ball on the screen.
-                Controller.AddExplosiveBall(xPos, yPos, spriteWidth, spriteHeight);
+                Controller.AddExplosiveSpriteToTheScreen(xPos, yPos, spriteWidth, spriteHeight);
                 
                 // Destroy ourselves.
                 Destroy();

@@ -125,6 +125,7 @@ namespace Arcanoid_SFML
 
         }
 
+
         private void Window_Closed(object sender, EventArgs e) => Close();
 
         private void View_KeyPressed(object sender, KeyEventArgs e) => IsKeyPressed?.Invoke(sender, e);

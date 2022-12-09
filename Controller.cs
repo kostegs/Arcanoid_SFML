@@ -53,7 +53,7 @@ namespace Arcanoid_SFML
     {
         private static Random s_random;
         private static GameMode s_lastGameMode;
-        private static Queue<IGameObject> s_queueAddObjects = new Queue<IGameObject>();
+        private static Queue<IGameObject> s_queueAddObjectsToTheGame = new Queue<IGameObject>();
         private static string s_explosionSound;
         private static string s_startScreenMusic;
         private static string s_playGameMusic;
@@ -94,18 +94,61 @@ namespace Arcanoid_SFML
             PlayMusic(s_startScreenMusic, 45);
         }
 
-        public static void InitializateController() => InitializeGameObjects();
-
-        public static void RestartGame()
+        public static string LoadSound(string path)
         {
-            Hp = Settings.DefaultHp;
-            Settings.GameMode = GameMode.ShowingLevelNumber;
-            LevelNumber = 1;
-            View.InitializationGameModeSwitched();            
+            SoundBuffer buffer = SoundsBuffers.Add(path, new SoundBuffer(path));
+            Sounds.Add(path, new Sound(buffer));
+            return path;
         }
 
-        public static int RandomNumber(int minBound, int maxBound) => s_random.Next(minBound, maxBound);
-        
+        public static void PlaySound(string name, float volume)
+        {
+            try
+            {
+                Sound sound = Sounds.Get(name);
+                sound.Volume = volume;
+                if (sound.Status == SoundStatus.Playing)
+                    sound.Stop();
+
+                sound.Play();
+            }
+            catch { }
+        }
+
+        public static string LoadMusic(string path)
+        {
+            Musics.Add(path, new Music(path));
+            return path;
+        }
+
+        public static void PlayMusic(string name, float volume)
+        {
+            try
+            {
+                Music music = Musics.Get(name);
+                music.Volume = volume;
+                if (music.Status != SoundStatus.Playing)
+                {
+                    music.Loop = true;
+                    music.Play();
+                }
+            }
+            catch { }
+            
+        }
+
+        public static void StopAnyMusic()
+        {
+            foreach (KeyValuePair<string, object> music in Musics)
+                try
+                {
+                    (music.Value as Music).Stop();
+                }
+                catch {}
+        }
+
+        public static void InitializateController() => InitializeGameObjects();
+
         private static void InitializeGameObjects()
         {
             s_GameObjects = new LinkedList<IGameObject>();
@@ -141,11 +184,11 @@ namespace Arcanoid_SFML
             switch (Settings.GameMode)
             {
                 case GameMode.Play:
-                    return CreateBlocksObject_PlayMode();                    
+                    return CreateBlocksObject_PlayMode();
                 case GameMode.StartScreen:
                 case GameMode.EndGame:
                 case GameMode.WinGame:
-                    return CreateBlocksObject_StartScreenMode();                    
+                    return CreateBlocksObject_SelectScreenMode();
                 default:
                     return CreateBlocksObject_PlayMode();
             }
@@ -155,14 +198,14 @@ namespace Arcanoid_SFML
         {
             int countOfBlocks = 25;
             int numberOfColumns = 5;
-            
+
             switch (LevelNumber)
             {
                 case 1:
                     countOfBlocks = 25;
                     numberOfColumns = 5;
                     break;
-                case 2:                    
+                case 2:
                     countOfBlocks = 50;
                     numberOfColumns = 10;
                     break;
@@ -184,18 +227,18 @@ namespace Arcanoid_SFML
             return blocks;
         }
 
-        private static Blocks CreateBlocksObject_StartScreenMode()
+        private static Blocks CreateBlocksObject_SelectScreenMode()
         {
             Blocks blocks = new Blocks(3, 2);
             blocks.IsCollision += BlockCollisionHandler;
-            return blocks;            
+            return blocks;
         }
 
         public static void Play()
         {
             while (View.IsOpen)
             {
-                View.DispatchEvents();                
+                View.DispatchEvents();
                 CheckGameModeSwitched();
 
                 switch (Settings.GameMode)
@@ -208,7 +251,7 @@ namespace Arcanoid_SFML
                         break;
                     case (GameMode.Play):
                         PlayGameActions();
-                        break;                        
+                        break;
                     case (GameMode.EndGame):
                         EndGameActions();
                         break;
@@ -219,10 +262,10 @@ namespace Arcanoid_SFML
                         View.DrawPauseScreen();
                         break;
                 }
-                
+
                 View.Display();
             }
-        }     
+        }
 
         public static void CheckGameModeSwitched()
         {
@@ -234,10 +277,8 @@ namespace Arcanoid_SFML
                 if (Settings.GameMode == GameMode.Play)
                 {
                     InitializateController();
-                    foreach (KeyValuePair<string, object> music in Musics)
-                        (music.Value as Music).Stop();
-                    //StopMusic(_startScreenMusic);
-                    PlayMusic(s_playGameMusic, 45);                    
+                    StopAnyMusic();                    
+                    PlayMusic(s_playGameMusic, 45);
                 }
                 else if (Settings.GameMode == GameMode.EndGame)
                 {
@@ -256,39 +297,60 @@ namespace Arcanoid_SFML
                 s_lastGameMode = Settings.GameMode;
             }
         }
-       
+
+        public static void RestartGame()
+        {
+            Hp = Settings.DefaultHp;
+            Settings.GameMode = GameMode.ShowingLevelNumber;
+            LevelNumber = 1;
+            View.InitializationGameModeSwitched();
+        }
+
+        public static void StartScreenActions() => SelectPlayOrExitAction();
+
+        public static void ShowLevelNumber()
+        {
+            View.Clear();
+            View.DrawLevelNumber();
+            Settings.GameMode = GameMode.Play;
+            CheckGameModeSwitched();
+        }
+
         public static void PlayGameActions()
         {
             // Checking queue.
-            while (s_queueAddObjects.Count() != 0)
+            while (s_queueAddObjectsToTheGame.Count() != 0)
             {
-                s_GameObjects.AddFirst(s_queueAddObjects.Dequeue());
+                s_GameObjects.AddFirst(s_queueAddObjectsToTheGame.Dequeue());
             }
 
             // Checking interact.
-            foreach (IGameObject gameObject in s_GameObjects)
-                if (gameObject is IInteractive)
-                    ((IInteractive)gameObject).Interact();
+            CheckInteractsBetweenObjects();
 
             // Moving objects.
-            foreach (IGameObject gameObject in s_GameObjects)
-                if (gameObject is IMovable)
-                    ((IMovable)gameObject).Move();
+            MoveObjects();
 
             // Checking Collision.
-            foreach (IGameObject gameObject in s_GameObjects)            
-                if (gameObject is IColliding)                
-                    foreach (IGameObject anotherObject in s_GameObjects)                    
-                        if ((anotherObject is IColliding) && (anotherObject != gameObject))
-                            ((IColliding)gameObject).CheckCollision((IColliding)anotherObject);
+            CheckCollisionsBetweenGameObjects();
 
             // Remove destructed objects.
+            RemoveDestructedObjectsFromGame();
+
+            // Drawing objects
+            DrawGameObjects();
+            
+            // Show count of lives.
+            View.DisplayStats();
+        }
+
+        private static void RemoveDestructedObjectsFromGame()
+        {
             var currentNode = s_GameObjects.First;
             LinkedListNode<IGameObject> lastNode = null;
 
             while (currentNode != null)
             {
-                IGameObject currentListElement= currentNode.Value;
+                IGameObject currentListElement = currentNode.Value;
                 lastNode = currentNode;
                 currentNode = currentNode.Next;
 
@@ -298,7 +360,52 @@ namespace Arcanoid_SFML
                     s_GameObjects.Remove(lastNode);
                 }
             }
+        }
 
+        public static void EndGameActions() => SelectPlayOrExitAction();
+
+        public static void WinGameActions() => SelectPlayOrExitAction();
+
+        public static void SelectPlayOrExitAction()
+        {
+            // Checking interact
+            CheckInteractsBetweenObjects();
+
+            // Moving objects
+            MoveObjects();
+
+            // Checking Collision
+            CheckCollisionsBetweenGameObjects();
+
+            // Drawing objects
+            DrawGameObjects();            
+        }
+
+        public static void CheckInteractsBetweenObjects()
+        {
+            foreach (IGameObject gameObject in s_GameObjects)
+                if (gameObject is IInteractive)
+                    ((IInteractive)gameObject).Interact();
+        }
+
+        public static void MoveObjects()
+        {
+            foreach (IGameObject gameObject in s_GameObjects)
+                if (gameObject is IMovable)
+                    ((IMovable)gameObject).Move();
+        }
+
+        public static void CheckCollisionsBetweenGameObjects()
+        {
+            foreach (IGameObject gameObject in s_GameObjects)
+                if (gameObject is IColliding)
+                    foreach (IGameObject anotherObject in s_GameObjects)
+                        if ((anotherObject is IColliding) && (anotherObject != gameObject))
+                            ((IColliding)gameObject).CheckCollision((IColliding)anotherObject);
+        }
+
+        public static void DrawGameObjects()
+        {
             // Clear window.
             View.Clear();
 
@@ -309,59 +416,41 @@ namespace Arcanoid_SFML
             foreach (IGameObject gameObject in s_GameObjects)
                 if (gameObject is IDrawable)
                     ((IDrawable)gameObject).Draw();
-
-            // Show count of lives.
-            View.DisplayStats();
         }
 
-        public static void StartScreenActions() => SelectPlayOrExitAction();
+        public static int RandomNumber(int minBound, int maxBound) => s_random.Next(minBound, maxBound);
 
-        public static void EndGameActions() => SelectPlayOrExitAction();
-
-        public static void WinGameActions() => SelectPlayOrExitAction();
-
-        public static void SelectPlayOrExitAction()
+        private static void View_KeyPressedHandler(object sender, KeyEventArgs e)
         {
-            // Checking interact
-            foreach (IGameObject gameObject in s_GameObjects)
-                if (gameObject is IInteractive)
-                    ((IInteractive)gameObject).Interact();
+            if (e.Code == Keyboard.Key.Escape)
+            {
+                if (Settings.GameMode == GameMode.Play)
+                    Settings.GameMode = GameMode.Pause;
+                else if (Settings.GameMode == GameMode.Pause)
+                    Settings.GameMode = GameMode.Play;
 
-            // Moving objects
-            foreach (IGameObject gameObject in s_GameObjects)
-                if (gameObject is IMovable)
-                    ((IMovable)gameObject).Move();
-
-            // Checking Collision
-            foreach (IGameObject gameObject in s_GameObjects)
-                if (gameObject is IColliding)
-                    foreach (IGameObject anotherObject in s_GameObjects)
-                        if ((anotherObject is IColliding) && (anotherObject != gameObject))
-                            ((IColliding)gameObject).CheckCollision((IColliding)anotherObject);
-
-            // Clear window
-            View.Clear();
-            View.DrawBackground();
-
-            // Draw objects
-            foreach (IGameObject gameObject in s_GameObjects)
-                if (gameObject is IDrawable)
-                    ((IDrawable)gameObject).Draw();
+                s_lastGameMode = Settings.GameMode;
+            }
         }
-        
-        public static void ShowLevelNumber()
+
+        private static void View_WindowLostFocusHandler(object sender, EventArgs e)
         {
-            View.Clear();
-            View.DrawLevelNumber();
-            Settings.GameMode = GameMode.Play;
-            CheckGameModeSwitched();
+            if (Settings.GameMode == GameMode.Play)
+                Settings.GameMode = s_lastGameMode = GameMode.Pause;
         }
 
-        public static void AddExplosiveBall(float xPos, float yPos, float width, float height)
+
+
+
+
+
+        public static void AddExplosiveSpriteToTheScreen(float xPos, float yPos, float width, float height)
         {
-            IGameObject explosiveBall = new ExplosiveObject(new Vector2f(xPos, yPos), width, height);
-            s_queueAddObjects.Enqueue(explosiveBall);
+            IGameObject explosiveSprite = new ExplosiveObject(new Vector2f(xPos, yPos), width, height);
+            s_queueAddObjectsToTheGame.Enqueue(explosiveSprite);
         }
+
+
 
         public static void BallDroppedHandler(object sender, EventArgs e)
         {
@@ -431,63 +520,7 @@ namespace Arcanoid_SFML
                 
         }
         
-        private static void View_KeyPressedHandler(object sender, KeyEventArgs e)
-        {
-            if (e.Code == Keyboard.Key.Escape)
-            {
-                if (Settings.GameMode == GameMode.Play)
-                    Settings.GameMode = GameMode.Pause;
-                else if (Settings.GameMode == GameMode.Pause)
-                    Settings.GameMode = GameMode.Play;
-
-                s_lastGameMode = Settings.GameMode;
-            }            
-        }
         
-        private static void View_WindowLostFocusHandler(object sender, EventArgs e)
-        {
-            if (Settings.GameMode == GameMode.Play)
-                Settings.GameMode = s_lastGameMode = GameMode.Pause;            
-        }
-
-        public static string LoadSound(string path)
-        {
-            SoundBuffer buffer = SoundsBuffers.Add(path, new SoundBuffer(path));
-            Sounds.Add(path, new Sound(buffer));
-            return path;
-        }
-
-        public static void PlaySound(string name, float volume)
-        {
-            Sound sound = Sounds.Get(name);
-            sound.Volume = volume;
-            if (sound.Status == SoundStatus.Playing)
-                sound.Stop();
-            
-            sound.Play();            
-        }
-        
-        public static string LoadMusic(string path)
-        {
-            Musics.Add(path, new Music(path));
-            return path;
-        }
-
-        public static void PlayMusic(string name, float volume)
-        {
-            Music music = Musics.Get(name);
-            music.Volume = volume;            
-            if (music.Status != SoundStatus.Playing)
-            {
-                music.Loop = true;
-                music.Play();
-            }
-        }
-
-        public static void StopAnyMusic()
-        {
-            foreach (KeyValuePair<string, object> music in Musics)
-                (music.Value as Music).Stop();
-        }
+                
     }
 }
