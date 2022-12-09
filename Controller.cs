@@ -439,18 +439,11 @@ namespace Arcanoid_SFML
                 Settings.GameMode = s_lastGameMode = GameMode.Pause;
         }
 
-
-
-
-
-
         public static void AddExplosiveSpriteToTheScreen(float xPos, float yPos, float width, float height)
         {
             IGameObject explosiveSprite = new ExplosiveObject(new Vector2f(xPos, yPos), width, height);
             s_queueAddObjectsToTheGame.Enqueue(explosiveSprite);
         }
-
-
 
         public static void BallDroppedHandler(object sender, EventArgs e)
         {
@@ -475,33 +468,45 @@ namespace Arcanoid_SFML
         }
 
         private static void BlockCollisionHandler(object sender, EventArgs e)
-        {
+        {     
             if (sender is PlayBlock)
             {
                 Settings.GameMode = GameMode.ShowingLevelNumber;
                 CheckGameModeSwitched();
+                return;
             }
             else if (sender is ExitBlock)
             {
                 Environment.Exit(0);
             }
-            else
+            else if (sender is ExplosiveBlock)
             {
-                if (sender is GlassBlock || sender is HardGlassBlock)
-                {
-                    if (((Block)sender).IsDestroyMode)
-                        PlaySound(s_explosionSound, 85);
-                    else
-                        PlaySound(s_crackedBlockSound, 45);
-                }                    
-                else
-                    PlaySound(s_explosionSound, 85);
-
-                // if block is in collision with platform or below - it's EndGame
-                if (e is CollisionEventArgs &&
-                    ((CollisionEventArgs)e).EncounteredObject is Platform || ((CollisionEventArgs)e).EncounteredObject is BorderUnderPlatform)
-                    Settings.GameMode = GameMode.EndGame;
+                // Creating sprite 3*3 simple block's size to destroy neighbours. Because they will check their collisions and destroy themselves.
+                ExplosiveBlock explosiveBlock = sender as ExplosiveBlock;
+                float spriteWidth = explosiveBlock.BlockSprite.TextureRect.Width * 3;
+                float spriteHeight = explosiveBlock.BlockSprite.TextureRect.Height * 3;
+                float xPos = explosiveBlock.BlockSprite.Position.X - explosiveBlock.BlockSprite.TextureRect.Width;
+                float yPos = explosiveBlock.BlockSprite.Position.Y - explosiveBlock.BlockSprite.TextureRect.Height;
+                
+                AddExplosiveSpriteToTheScreen(xPos, yPos, spriteWidth, spriteHeight);
             }
+            
+            // if block is in collision with platform or below - it's EndGame
+            if (e is CollisionEventArgs &&
+                ((CollisionEventArgs)e).EncounteredObject is Platform || ((CollisionEventArgs)e).EncounteredObject is BorderUnderPlatform)
+                Settings.GameMode = GameMode.EndGame;            
+
+            // Sounds of collisions
+            if (sender is GlassBlock || sender is HardGlassBlock)
+            {
+                if (((Block)sender).IsDestroyMode)
+                    PlaySound(s_explosionSound, 85);
+                else
+                    PlaySound(s_crackedBlockSound, 45);
+            }
+            else
+                PlaySound(s_explosionSound, 85);
+
         }
 
         private static void BlocksAreOverHandler(object sender, EventArgs e)
@@ -516,11 +521,8 @@ namespace Arcanoid_SFML
                     Settings.GameMode = GameMode.ShowingLevelNumber;
 
                 CheckGameModeSwitched();
-            }
-                
+            }                
         }
-        
-        
-                
+                        
     }
 }

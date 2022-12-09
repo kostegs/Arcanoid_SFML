@@ -11,7 +11,7 @@ namespace Arcanoid_SFML
     {
         private Texture _ballTexture;
         private float _speed;
-        private Vector2i s_mousePosition;
+        private Vector2i _mousePosition;
         private Vector2f _direction;
 
         public Sprite BallSprite { get; protected set; }
@@ -30,15 +30,15 @@ namespace Arcanoid_SFML
 
             // Stick the ball to the mouse pointer until the player click the left button.
             BallSprite.Position = new Vector2f(0, 500 - BallSprite.TextureRect.Height);
-            s_mousePosition = Mouse.GetPosition(Controller.View);
-            BallSprite.Position = new Vector2f(s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f), BallSprite.Position.Y);
+            _mousePosition = Mouse.GetPosition(Controller.View);
+            BallSprite.Position = new Vector2f(_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f), BallSprite.Position.Y);
         }
         public void Interact()
         {
             if (_speed != 0)
                 return;
 
-            s_mousePosition = Mouse.GetPosition(Controller.View);
+            _mousePosition = Mouse.GetPosition(Controller.View);
 
             if (Mouse.IsButtonPressed(Mouse.Button.Left))
                 Start(Settings.BallSpeed, new Vector2f(0, -1));
@@ -56,7 +56,7 @@ namespace Arcanoid_SFML
             if (_speed == 0)
             {
                 // To avoid exit from borders, in case where ball is on the platform and move with this
-                float xPos = s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f) < 0 ? 0 : s_mousePosition.X - (BallSprite.TextureRect.Width * 0.5f);
+                float xPos = _mousePosition.X - (BallSprite.TextureRect.Width * 0.5f) < 0 ? 0 : _mousePosition.X - (BallSprite.TextureRect.Width * 0.5f);
                 xPos = xPos + BallSprite.TextureRect.Width > 800 ? 800 - BallSprite.TextureRect.Width : xPos;
                 BallSprite.Position = new Vector2f(xPos, BallSprite.Position.Y);
                 return;

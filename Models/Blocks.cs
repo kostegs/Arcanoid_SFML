@@ -19,8 +19,8 @@ namespace Arcanoid_SFML
     {
         protected Clock _destroyTimer;
         private float _speed;
-        public bool IsDestroyMode { get; protected set; }
         
+        public bool IsDestroyMode { get; protected set; }        
         public Texture BlockTexture { get; set; }
         public Sprite BlockSprite { get; set; } = new Sprite();
         public bool AllowToDestroy { get; set; }
@@ -36,19 +36,26 @@ namespace Arcanoid_SFML
             BlockSprite.Texture = BlockTexture;
         }
         public virtual void Draw() => Controller.View.Draw(BlockSprite);
-        public abstract void CheckCollision(IColliding withObject);   
+        public virtual void CheckCollision(IColliding withObject)
+        {
+            if (HasCollision(withObject))
+            {
+                NotifyAboutCollision(withObject);
+                Destroy();
+            }                
+        }
         
         public virtual bool HasCollision(IColliding withObject)
         {
             bool isCollision = !IsDestroyMode && BlockSprite.GetGlobalBounds().Intersects(withObject.GetSpriteOfObject().GetGlobalBounds());
 
-            if (isCollision)
-                IsCollisionEvent?.Invoke(this, new CollisionEventArgs(withObject));
-            
             return isCollision;
-        }  
-
+        }
+        
+        public virtual void NotifyAboutCollision(IColliding withObject) => IsCollisionEvent?.Invoke(this, new CollisionEventArgs(withObject)); 
+        
         public Sprite GetSpriteOfObject() => BlockSprite;
+
         public virtual void Destroy()
         {
             if (!IsDestroyMode)
@@ -61,6 +68,7 @@ namespace Arcanoid_SFML
                 _destroyTimer.Restart();
             }
         } 
+
         public virtual void Move()
         {
             Vector2f _direction = new Vector2f(0, 1);
@@ -79,43 +87,23 @@ namespace Arcanoid_SFML
                 AllowToDestroy = true;
         }
     }
-    internal class SimpleBlock : Block
+
+    internal class SimpleBlock : Block 
     {
-        public SimpleBlock() : base() {}
-        public override void CheckCollision(IColliding withObject)
-        {
-            if (HasCollision(withObject))
-                Destroy();
-        }
+        public SimpleBlock() : base() {}        
     }    
+
     class ExplosiveBlock : Block
     {
         public ExplosiveBlock(Block baseBlock) : base() 
         {
             this.BlockSprite.Position = baseBlock.BlockSprite.Position;
             this.BlockSprite.Texture = new Texture(@"./res/ExplosiveBlock.png");
-        }                
-        public override void CheckCollision(IColliding withObject)
-        {
-            if (HasCollision(withObject))            
-            {
-                // Creating Explosive ball 3*3 simple block's size to destroy neighbours.
-                float spriteWidth = BlockSprite.TextureRect.Width * 3;
-                float spriteHeight = BlockSprite.TextureRect.Height * 3;
-                float xPos = BlockSprite.Position.X - BlockSprite.TextureRect.Width;
-                float yPos = BlockSprite.Position.Y - BlockSprite.TextureRect.Height;
-
-                // Ask controller to put explosive ball on the screen.
-                Controller.AddExplosiveSpriteToTheScreen(xPos, yPos, spriteWidth, spriteHeight);
-                
-                // Destroy ourselves.
-                Destroy();
-            }            
-        }
+        }                        
     }
+
     class GlassBlock : Block
     {
-
         private Texture _textureCrack = new Texture(@"./res/CrackedBlock_Wrecked.png");
         private int _collisionCounter = 0;
 
@@ -134,7 +122,9 @@ namespace Arcanoid_SFML
                 if (_collisionCounter == 1)                
                     BlockSprite.Texture = _textureCrack;                                    
                 else                
-                    Destroy();                                    
+                    Destroy();
+
+                base.NotifyAboutCollision(withObject);
             }
         }       
     }
@@ -167,16 +157,25 @@ namespace Arcanoid_SFML
                     default:
                         Destroy();                        
                         break;
-                }                
+                }
+
+                base.NotifyAboutCollision(withObject);
             }
         }        
     }
+
     abstract class ButtonBlock : Block
     {
         public ButtonBlock() : base() { }
-        public override void CheckCollision(IColliding withObject) => HasCollision(withObject);
+        public override void CheckCollision(IColliding withObject)
+        {
+            base.CheckCollision(withObject);            
+        }
+            
+        // Button-blocks aren't moving.
         public override void Move() {}
     }
+
     class PlayBlock : ButtonBlock
     {
         public PlayBlock() : base()
@@ -185,6 +184,7 @@ namespace Arcanoid_SFML
             this.BlockSprite = new Sprite(playTexture);            
         }
     }
+
     class ExitBlock : ButtonBlock
     {
         public ExitBlock() : base()
@@ -193,6 +193,7 @@ namespace Arcanoid_SFML
             this.BlockSprite = new Sprite(playTexture);
         }                
     }
+
     internal class Blocks : IGameObject, IDrawable, IMovable, IColliding, IInteractive
     {
         public LinkedList<Block> BlockList { get; private set; }
@@ -220,7 +221,7 @@ namespace Arcanoid_SFML
                         BlockList.AddLast(simpleBlock);
                     }                        
 
-                SetStartPosition(numberOfColumns);
+                BlocksSetStartPosition(numberOfColumns);
                 _timerForGeneratingBonusBlocks.Restart();
             }                
             else if (Settings.GameMode == GameMode.StartScreen || Settings.GameMode == GameMode.EndGame || Settings.GameMode == GameMode.WinGame)
@@ -242,7 +243,7 @@ namespace Arcanoid_SFML
             IsCollision?.Invoke(sender, e);
         }
         
-        public void SetStartPosition(int numberOfColumns)
+        public void BlocksSetStartPosition(int numberOfColumns)
         {
             int x = 0;
             int y = 0;
@@ -265,18 +266,30 @@ namespace Arcanoid_SFML
                 x++;
             }            
         }
+
         public void SetBlockPosition(Block block, float x, float y, int xSreenOffset)
         {
             block.BlockSprite.Position = new Vector2f(x * (block.BlockSprite.TextureRect.Width + 15) + xSreenOffset,
                         y * (block.BlockSprite.TextureRect.Height + 15) + 50);            
         }
+
         public void CheckCollision(IColliding withObject)
         {
             // First of all - checking collision with another object.
             foreach (Block block in BlockList)                
                     block.CheckCollision(withObject);
 
-            // Iterating all blocks, if some block is destroyable and has a flag "You can destroy me" - we are kicking him from the collection.
+            DeleteDestructedBlocks();
+
+            // Player has broke all blocks. It means - Level complete! Sending notification to the controller.
+            if (BlockList.Count() == 0)
+                BlocksAreOver?.Invoke(this, new EventArgs());
+        }
+        
+        private void DeleteDestructedBlocks()
+        {
+            // Iterating all blocks, if some block is destroyable it has a flag "Allow to Destroy",
+            // that means "You can destroy me", in this case we are kicking it from the collection.
             var currentNode = BlockList.First;
             LinkedListNode<Block> lastNode = null;
 
@@ -292,22 +305,15 @@ namespace Arcanoid_SFML
                     BlockList.Remove(lastNode);
                 }
             }
-
-            if (BlockList.Count() == 0)
-                BlocksAreOver?.Invoke(this, new EventArgs());
         }
-        
+
         public void Draw()
         {
             foreach (Block block in BlockList)
                 block.Draw();
-
-            /*Console.SetCursorPosition(0, 0);
-            Console.Write("   ");
-            Console.SetCursorPosition(0, 0);
-            Console.Write(BlockList.Count());*/
         }
 
+        // For compatibility with interface.
         public Sprite GetSpriteOfObject() => new Sprite();
 
         public void Move()
@@ -318,18 +324,19 @@ namespace Arcanoid_SFML
 
         public void Interact()
         {
+            // Changing random block one time in 5 second.
             if (_timerForGeneratingBonusBlocks.ElapsedTime.AsSeconds() >= 5)
             {
                 ChangeRandomBlock();
                 _timerForGeneratingBonusBlocks.Restart();
             }
             foreach (Block block in BlockList)
-                block.Interact();
-                
+                block.Interact();                
         }
+
         private void ChangeRandomBlock()
         {
-            // Generate new kind of blocks only in playing-mode or If count of blocks > 3.
+            // Generating new kind of blocks in condition where this is the playing game-mode or count of blocks > 3
             if ((Settings.GameMode != GameMode.Play) || (BlockList.Count < 3))
                 return;
 
@@ -343,14 +350,15 @@ namespace Arcanoid_SFML
                 _counter++;                
                 _currentNode = _currentNode.Next;
                 
-                // If we've enumerated all elements in the list we need to stop
+                // If we've enumerated all elements in the list and haven't had any result we need to stop. It was a bad try.
                 if (_currentNode == null)
                     _continueEnumeration = false;
                 else
                 {
-                    // If we found our random block and it isn't destroying 
+                    // If we found our random block and it isn't destroying right now.
                     if (_counter >= _rndNumber && !_currentNode.Value.IsDestroyMode)
                     {
+                        // Change this block to another random block.
                         _currentNode.Value = GetRandomBonusBlock(_currentNode.Value);
                         _continueEnumeration = false;
                     }
@@ -379,6 +387,7 @@ namespace Arcanoid_SFML
                     break;
             }
 
+            // Subscribing to collision event, because this is a new block and we aren't subscribed yet..
             randomBlock.IsCollisionEvent += CollisionHandler;
             return randomBlock;
         }
